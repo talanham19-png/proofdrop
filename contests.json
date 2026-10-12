@@ -1,17 +1,30 @@
 [
   {
-    "contestId": "PD-003",
+    "contestId": "PD-004",
     "title": "The Fair Ledger",
-    "subtitle": "A puzzle for the Crypto World's Fair · 1 SOL purse held in escrow by the program",
+    "subtitle": "A puzzle for the Crypto World's Fair · purse held in escrow by the program · devnet SOL (test tokens; no cash value)",
     "status": "open",
     "featured": true,
-    "clue": "<p>Every fair is a block. These eight arrived out of order.</p><ol class=\"blocks\"><li><span class=\"off\">[8]</span> A golden-glass globe on a steel truss over Tennessee. Television later called it a wig.</li><li><span class=\"off\">[5]</span> Iron and nearly 300,000 panes of glass, raised in Hyde Park for the first fair of them all.</li><li><span class=\"off\">[5]</span> A steel tree, thirty-seven metres tall, that lit up and sang over the lake in Milan.</li><li><span class=\"off\">[1]</span> Under the Needle, a single concrete beam carried visitors from downtown to the fairground. It still runs.</li><li><span class=\"off\">[3]</span> A dome of steel lace at the heart of a desert fair that opened a year late.</li><li><span class=\"off\">[8]</span> Three hundred artists signed a protest against it. It was meant to come down after twenty years.</li><li><span class=\"off\">[5]</span> Taro Okamoto gave it three faces and drove it up through the roof of the festival plaza.</li><li><span class=\"off\">[3]</span> Buckminster Fuller's sphere of steel and acrylic held America's pavilion on an island in the St. Lawrence.</li></ol><p>Name each landmark in plain English (no spaces, no city). Put the blocks in height order, oldest fair first, and take the letter at each block's offset. The chain spells what every World's Fair has ever been selling.</p>",
+    "clue": "<p>Every fair is a block. These eight arrived out of order.</p><ol class=\"blocks\"><li><span class=\"off\">[8]</span> A golden-glass globe on a steel truss over Tennessee. Television later called it a wig.</li><li><span class=\"off\">[5]</span> Iron and nearly 300,000 panes of glass, raised in Hyde Park for the first fair of them all.</li><li><span class=\"off\">[5]</span> A steel tree, thirty-seven metres tall, that lit up and sang over the lake in Milan.</li><li><span class=\"off\">[1]</span> Under the Needle, a single concrete beam carried visitors from downtown to the fairground. It still runs.</li><li><span class=\"off\">[3]</span> Its Arabic name means “the connection”: a trellised dome of steel lace at the heart of a desert fair that opened a year late.</li><li><span class=\"off\">[8]</span> Three hundred artists signed a protest against it. It was meant to come down after twenty years.</li><li><span class=\"off\">[5]</span> Taro Okamoto gave it three faces and drove it up through the roof of the festival plaza.</li><li><span class=\"off\">[3]</span> Buckminster Fuller's sphere of steel and acrylic held America's pavilion on an island in the St. Lawrence. Today it's an environment museum that still bears the dome's own one-word name.</li></ol><p>Name each landmark in plain English (no spaces, no city). Put the blocks in height order, oldest fair first, and take the letter at each block's offset. The chain spells what every World's Fair has ever been selling.</p>",
     "hint": "Height means year. The first block is London's; the last opened in 2021 under a 2020 name.",
     "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
-    "commitSig": "383iNbHTQKiwrfUEmWUZ2hCg3y1j1HimWVPr41WqK4wrYYBm1exvCQPhKV7yaeMNX8m9NcUYbngBfGgfJkcV3R38",
-    "commitHash": "c774ba701d50541581bd7710d680f4d3accc79c853995cecbfc43684afee1d3f",
+    "commitSig": "5EDjfaNGzDNCnUaTRegERqKSUeGXPJwR7hdnsJc4ADhgzJgmm9kmBHvFoimfdo8AsVcaMEySNzChghG5Gc8pUBye",
+    "commitHash": "ac7f91e11c65e44d7deb56152451ca7cd39d1e49c467292e66e2a5c5eaac76ab",
     "program": "v2",
-    "contest": "J1oufEb3DCGeLwjX9EGtNpdNo33a3DT3epbekMXFbCiz"
+    "contest": "J6ESLTYQfKreieRLQqKTinGP67fUkjLzwXEgeQYppjEU"
+  },
+  {
+    "contestId": "PRAC-01",
+    "title": "Practice round",
+    "subtitle": "Try the whole flow with a puzzle you can solve in seconds · 0.1 devnet SOL (test tokens; no cash value) to the earliest correct entry",
+    "status": "open",
+    "program": "v2",
+    "clue": "Shift every letter back three: <b>GRQ'W WUXVW, YHULIB</b>",
+    "hint": "Same cipher as the finished contests below, whose answers are public. This round exists so anyone can watch a correct entry move through seal, reveal, settle and payout. Entries close about 24 hours after launch; the house then reveals and settles every entry.",
+    "contest": "5CyR8aKraccfuLY4tWXF9QtaiL6xFoWKsb5iNpcn58Zp",
+    "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
+    "commitSig": "bsKgDaPXRc81G2mYGkMyZ9qWxSQbdfaWsDwbDcpZZRd31uwW9YGzeBsiJtMvpJFGx5w6DqVvEMeLM7YaV4hcL5T",
+    "commitHash": "3d7b1a520b42b1c25f03c05ce16b814db99694a91a4d0992615100c779f462dc"
   },
   {
     "contestId": "ESC-001",
@@ -24,6 +37,42 @@
     "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
     "commitSig": "3DYwJbqUf6h5N5JL3t4ZWXAgPeiwUCYf3hxUDAVhjXfpveRxbDyeZCUgBB7tJXR1ADURMyXex5m5gq9JNE9tLiiG",
     "commitHash": "7999869e17259c80c465e9796d167673c69ec279e66c2f034b4467b625ac19e5"
+  },
+  {
+    "contestId": "ESC-003",
+    "title": "The Copycat and the Crooked House",
+    "subtitle": "A finished escrowed contest where the house and a copycat both tried to cheat, and the program stopped every attempt",
+    "status": "closed",
+    "program": "v2",
+    "clue": "Shift every letter back three: <b>GRQ'W WUXVW, YHULIB</b>",
+    "contest": "Dyct7nTzHCQAfGE5yFuWLrGcUUFqJHf9hhMLCmtsfseC",
+    "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
+    "commitSig": "51n6XQHyoutLhbV8Q88Vecbx4e29u6ChQtGDYbeTp9HhVjFTcPNZ2UL3CuaV7nMkGDkCHBAThXYwVAMkYdpQPS4L",
+    "commitHash": "acaa8fd99ef172e4aa8542746368f266ac127e03cb45263702ec89a2dffdb3e8",
+    "proof": {
+      "id": "ESC-003",
+      "program": "5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q",
+      "create": "51n6XQHyoutLhbV8Q88Vecbx4e29u6ChQtGDYbeTp9HhVjFTcPNZ2UL3CuaV7nMkGDkCHBAThXYwVAMkYdpQPS4L",
+      "contest": "Dyct7nTzHCQAfGE5yFuWLrGcUUFqJHf9hhMLCmtsfseC",
+      "winnerEntry": "3CBcJynhkmzWDw4GAPf6Ga6avSJsPAGnbYcMv29BUUPiyHAi9D4Dw32XqrUH5KrNK9ZtVeE3LCR6jCPePB8htCmr",
+      "copierEntry": "4qqGKoFs6f9mTGoUertscjPe5q23ACsjpjSSnuCmLMYsLwvPe2bppxfVVcdEXERzwpaHBCnzvhjchafx2S9SFts7",
+      "houseEnters": {
+        "sig": "3o6K8UhoeSNPc1c7JifRJmzasmk7NippcJwTixfJc8RrRxkpxofw3ywrBPbeZ4LxAKk9MUeJdY7qsPzFmSrCSun9",
+        "error": "The house wallet cannot enter its own contest"
+      },
+      "houseChangesAnswer": {
+        "sig": "3sVkqUDnMYyWUv4gssubDiYCH2cbcTTdfWzakoKotCFJEPTKC56jcCok35Lx2pqrQ1cEksuWmT8XSWMm39cws1Xh",
+        "error": "Reveal does not match the commitment"
+      },
+      "reveal": "3iYk4ZRLqjKQzcUUPvWeZevVyVmgKyqHWZzxGjCxxcS3s4GjKtpnxF7FWsFr9sugS89yTQTd78pTec6iG881nuY6",
+      "copierSettled": "3fMHctyC5WVjQSfrP1Lnp9wBJHzSr9ZcKmLZUQW8YEEfgsFi7soq9KBL4EVEgUVKhM3eNAR4582vxXvm2AVwy4UY",
+      "winnerSettled": "52M91iaMSpJMJCDnMEzkQhHDV3yPyuREbf9fBqzQ5vmPSsaZdYkkpnq4CBNhsevrvRnNUVPytfqUs9METGYRrmc",
+      "payoutToCopier": {
+        "sig": "5W79wANNfZMUx6FiSctmUGS6hSZFBEqQyao4cGF3iHZmuS72bn3VGvAALaLPJRAjBdXGdzXWpmuHYvoEEXDd5RnU",
+        "error": "Recipient is not the winner"
+      },
+      "payout": "2ZdM7mKb2U7wDBJNsMzcrCXHkxDgdz558gTX2eRGW6d2oMBoQ8UTjAYepTq3rx9RRmSZwaihpDEWrYpbwfbtNzSh"
+    }
   },
   {
     "contestId": "PD-002",

@@ -80,8 +80,17 @@ if (cmd === 'keygen') {
   catch (e) { console.log('rejected:', explainError(e)); }
 } else if (cmd === 'v2-reveal') {
   const [keyf, id, salt, answer] = a; const kp = load(keyf);
-  try { console.log(await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixReveal(web3, { house: kp.publicKey, id, salt, answer })), [kp], { commitment: 'confirmed' })); }
-  catch (e) { console.log('rejected:', explainError(e)); }
+  try { console.log('revealed', await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixReveal(web3, { house: kp.publicKey, id, salt, answer })), [kp], { commitment: 'confirmed' })); }
+  catch (e) { console.log('rejected:', explainError(e)); process.exit(1); }
+  // Auto-claim straight after the reveal, so a correct entry can't lapse and send the purse back to the house.
+  const st = await loadContest(web3, conn, kp.publicKey, id);
+  const first = st.entries.find(e => e.correct);
+  if (!first) console.log('no correct entry; after the claim window the purse returns to the house');
+  else {
+    try { console.log('claimed for earliest correct entry', first.solver, await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixClaim(web3, { contest: st.address, entry: first.address })), [kp], { commitment: 'confirmed' })); }
+    catch (e) { console.log('auto-claim failed:', explainError(e), '- run v2-settle'); }
+    console.log('payout opens after slot', st.revealSlot + st.claimSlots, '- then run v2-settle (or anyone presses Trigger payout)');
+  }
 } else if (cmd === 'v2-settle') {
   // v2-settle <payerKey> <house> <id> : claims every correct entry (earliest wins), then pays out once the window closes
   const [keyf, house, id] = a; const kp = load(keyf);

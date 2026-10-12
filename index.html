@@ -6,7 +6,7 @@
 <title>ProofDrop · Scrypt</title>
 <meta name="description" content="ProofDrop by Scrypt: puzzle contests where the answer is sealed on Solana before the clue drops, guesses stay hidden until the reveal, and anyone can recompute the winner.">
 <meta property="og:title" content="ProofDrop · Scrypt">
-<meta property="og:description" content="Puzzle contests nobody can rig, not even the house. Sealed on Solana.">
+<meta property="og:description" content="The house can't change the answer, and a Solana program pays the earliest correct solver. Devnet demo.">
 <!-- SLOT og-image: Scout supplies 1200x630 share card -> <meta property="og:image" content="/assets/og.png"> -->
 <link rel="icon" type="image/svg+xml" href="assets/scrypt-mark.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -80,6 +80,8 @@ th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertic
 th{color:var(--dim);font-weight:400;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
 .win{color:var(--orange);font-weight:500}
 .purse{display:inline-block;font:500 12px var(--mono);color:#04060f;background:var(--green);border-radius:999px;padding:3px 10px;margin:0 6px 6px 0;letter-spacing:.08em}
+.dimtxt{color:var(--dim)}
+.proof .kv{grid-template-columns:170px 1fr;font-size:13px}
 .legacy-h{margin:34px 0 6px;color:var(--dim);font-size:11px;letter-spacing:.2em;text-transform:uppercase}
 .verdict{margin-top:12px;padding:12px 14px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);font-size:13px}
 /* wallet onboarding */
@@ -114,8 +116,8 @@ footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid va
 <section class="hero">
   <div>
     <div class="kicker">Colosseum · Crypto World's Fair · Solana devnet</div>
-    <h1>Puzzle contests nobody can rig. <em>Not even the house.</em></h1>
-    <p>The answer is sealed on Solana before the clue drops, and the purse is locked in a program escrow. Your guess is sealed to your own wallet, so nobody can copy it off the chain. When the house reveals, the program checks it, finds the earliest correct wallet and pays it. No judge to trust.</p>
+    <h1>The house can't change the answer. <em>The program pays the winner.</em></h1>
+    <p>The answer is sealed on Solana before the clue drops, and the purse is locked in a program escrow. Your guess is sealed to your own wallet, so it can't be copied by anyone else. After entries close, the program rejects any reveal that doesn't match the seal, keeps the earliest correct wallet, and pays it. Devnet demo: purses are play money with no cash value.</p>
     <div class="row"><a class="btn" href="#start">Get a wallet in ten seconds</a><a class="btn ghost" href="#contests">See today's puzzle</a></div>
   </div>
   <div class="hero-art"><img src="assets/scrypt-logo.svg" alt="SCRYPT — the approved Scrypt mark and wordmark"></div>
@@ -123,8 +125,22 @@ footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid va
 
 <div class="steps">
   <div class="step"><b>1 · Commit</b><p>The house posts <span class="mono">sha256(id|salt|answer)</span> to the contest inbox. From that slot on, the answer is fixed.</p></div>
-  <div class="step"><b>2 · Submit</b><p>You post <span class="mono">sha256(id|wallet|guess)</span>. A correct guess looks like noise until the reveal and only counts for the wallet that sent it.</p></div>
-  <div class="step"><b>3 · Reveal &amp; payout</b><p>The program refuses any reveal that doesn't match the seal, keeps the earliest correct wallet, and pays it the purse from escrow. No judge, and no house hand on the money.</p></div>
+  <div class="step"><b>2 · Submit</b><p>You post <span class="mono">sha256(id|wallet|guess)</span>. It's bound to your wallet, so a copied entry never counts for anyone else.</p></div>
+  <div class="step"><b>3 · Reveal &amp; payout</b><p>The program rejects any reveal that doesn't match the seal. Every entry is then settled on chain (our reveal script does it at once; anyone can), and the program pays only when all are settled: to the earliest correct entry, or back to the house only if every entry was wrong.</p></div>
+</div>
+
+<h2>Proof on chain <small>click any of these</small></h2>
+<div class="card proof" id="proof">
+  <div class="kv">
+    <div>Escrow paid out</div><div>ESC-001: the program paid the earliest correct wallet 0.25 devnet SOL (first program version). <a href="https://explorer.solana.com/tx/4YHmcwXtv5DpWUbTR7dTLKpbDamiYYmpmoYYhcwUaCpdZHxomtkMD7FBbybbvXeJ2EVjBtKYbVskfAf6AZJqoV8t?cluster=devnet">payout transaction</a></div>
+    <div>House changes answer</div><div id="pf-house">ESC-003: the house tries to reveal a different answer, and the program rejects it.</div>
+    <div>House enters</div><div id="pf-enter">ESC-003: the house wallet tries to enter its own contest, and the program rejects it.</div>
+    <div>Copied entry</div><div id="pf-copy">ESC-003: a wallet re-posts the winner's sealed hash; it settles as wrong, and a payout to it is rejected.</div>
+    <div>Upgrade authority</div><div id="pf-auth">Checking the program on chain…</div>
+  </div>
+  <details class="hint"><summary>What you still trust (read this)</summary>
+    <p>Devnet only: every purse here is play money with no cash value. The house wallet can't enter its own contest, but the program can't stop the house using a second wallet, so this version still trusts it not to. Every entry must be settled before any payout, so no correct entry can be skipped, and the purse returns to the house only if every entry is proven wrong. Guesses are bound to their wallet, so they can't be copied; but someone holding a candidate answer can test it against other entries' hashes, so treat a sealed guess as uncopyable, not unreadable. If the house never reveals, the purse stays locked forever, so withholding a reveal can't save it money.</p>
+  </details>
 </div>
 
 <h2 id="start">Start <small>no install needed</small></h2>
@@ -132,7 +148,7 @@ footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid va
   <div class="start">
     <div class="step" id="s1"><b>1 · Wallet</b><p>Make a free devnet wallet in this browser, or connect Phantom if you already have one.</p>
       <div class="row"><button class="btn small" id="create">Create wallet</button><button class="btn ghost small" id="phantom">Use Phantom</button></div></div>
-    <div class="step locked" id="s2"><b>2 · Fuel</b><p>Each guess costs a fraction of a cent in devnet SOL. We drip you enough for thousands, free.</p>
+    <div class="step locked" id="s2"><b>2 · Fuel</b><p>An entry costs about 0.002 devnet SOL (account rent plus fee). We drip you enough for about ten, free.</p>
       <div class="row"><button class="btn small" id="fund" disabled>Get devnet SOL</button></div></div>
     <div class="step locked" id="s3"><b>3 · Solve</b><p>Work the puzzle below, then press <span style="color:var(--green)">Seal &amp; submit</span>. Your guess is hashed in your browser before it leaves.</p>
       <div class="row"><a class="btn ghost small" href="#contests">To the puzzle</a></div></div>
@@ -171,7 +187,7 @@ import * as web3 from 'https://esm.sh/@solana/web3.js@1.98.0';
 import bs58 from 'https://esm.sh/bs58@6.0.0';
 import { normalizeAnswer, submitHash, memoSubmit, adjudicate } from './lib/protocol.mjs';
 import { buildProtocolTx, fetchRecords } from './lib/chain.mjs';
-import { PROGRAM_ID, ixSubmit, ixClaim, ixPayout, loadContest, explainError } from './lib/escrow.mjs';
+import { PROGRAM_ID, ixSubmit, ixSettle, ixPayout, settleAllTxs, loadContest, explainError } from './lib/escrow.mjs';
 
 const RPC = new URLSearchParams(location.search).get('rpc') || 'https://api.devnet.solana.com';
 const conn = new web3.Connection(RPC, 'confirmed');
@@ -321,40 +337,46 @@ async function renderEscrow(card, c) {
   try {
     const [st, slot] = await Promise.all([loadContest(web3, conn, c.house, c.contestId), conn.getSlot('confirmed')]);
     if (!st.exists) { out.innerHTML = '<div class="status bad">Contest account not found on chain.</div>'; return; }
-    const claimEnd = st.revealSlot + st.claimSlots;
-    const phase = st.paid ? (st.paid === 1 ? 'paid' : 'refunded') : !st.revealed ? (slot <= st.closeSlot ? 'open' : 'awaiting') : (slot <= claimEnd ? 'claiming' : 'payable');
+    const pendingSettle = st.entries.filter(e => !e.settled).length;
+    const phase = st.paid ? (st.paid === 1 ? 'paid' : 'refunded') : !st.revealed ? (slot <= st.closeSlot ? 'open' : 'awaiting') : (pendingSettle > 0 ? 'settling' : 'payable');
     const eta = s => { const sec = Math.max(0, (s - slot) * 0.4); return sec > 86400 ? `${(sec / 86400).toFixed(1)} days` : sec > 3600 ? `${(sec / 3600).toFixed(1)} hours` : `${Math.max(1, Math.ceil(sec / 60))} min`; };
     const sol = (st.purse / 1e9).toLocaleString(undefined, { maximumFractionDigits: 4 });
-    const pill = card.querySelector('.purse'); if (pill) pill.textContent = `${sol} SOL purse`;
+    const pill = card.querySelector('.purse'); if (pill) pill.textContent = `${sol} devnet SOL purse`;
     const phaseText = {
       open: `Entries open. They close at slot ${st.closeSlot.toLocaleString()} (about ${eta(st.closeSlot)} from now).`,
       awaiting: 'Entries closed. Waiting for the house to reveal; until it does, the purse cannot leave escrow.',
-      claiming: `Revealed and verified by the program. Claim window ends in about ${eta(claimEnd)}; anyone can claim for a correct entry.`,
-      payable: 'Claim window over. Anyone can trigger the payout to the leader.',
-      paid: `Paid: the program sent ${sol} SOL from escrow to the earliest correct wallet.`,
-      refunded: 'Nobody was right, so the program returned the purse to the house.',
+      settling: `Revealed and verified by the program. ${pendingSettle} of ${st.entryCount} entries still to settle; the program pays only once every entry is settled. Anyone can settle.`,
+      payable: 'Every entry is settled. Anyone can trigger the payout; the program decides who receives it.',
+      paid: st.settled === st.entryCount ? `Paid: once every entry was settled, the program sent ${sol} devnet SOL from escrow to the earliest correct wallet.` : `Paid under the program's first version (claim-window rules, before settle-all): ${sol} devnet SOL from escrow to the earliest claimed correct wallet.`,
+      refunded: 'Every entry was settled and proven wrong, so the program returned the purse to the house.',
     }[phase];
     const me = address();
     const rows = st.entries.map(e => {
-      let state = !st.revealed ? 'sealed' : !e.correct ? 'wrong' : st.leader === e.solver ? `<span class="win">${st.paid === 1 ? 'PAID' : 'LEADER'}</span>` : 'correct, later';
-      const act = phase === 'claiming' && e.correct && st.leader !== e.solver && (st.leaderSlot === null || e.slot <= st.leaderSlot)
-        ? `<button class="btn ghost small claim" data-entry="${e.address}">Claim</button>` : `<a href="${ex('address', e.address)}">entry</a>`;
+      const done = phase === 'paid' || phase === 'refunded';
+      const isCorrect = e.settled ? e.settledCorrect : e.correct; // contests paid under v2.0 predate per-entry settle flags
+      let state = !st.revealed ? 'sealed' : (!e.settled && !done) ? 'unsettled' : !isCorrect ? 'wrong' : st.leader === e.solver ? `<span class="win">${st.paid === 1 ? 'PAID' : 'LEADER'}</span>` : 'correct, later';
+      const act = phase === 'settling' && !e.settled ? `<button class="btn ghost small settle" data-entry="${e.address}">Settle</button>` : `<a href="${ex('address', e.address)}">entry</a>`;
       return `<tr><td>#${e.idx + 1}</td><td class="mono"><a href="${ex('address', e.solver)}">${short(e.solver)}</a>${e.solver === me ? ' (you)' : ''}</td><td>${e.slot}</td><td>${state}</td><td>${act}</td></tr>`;
     });
     out.innerHTML = `<div class="kv"><div>Status</div><div>${phaseText}</div>
-      <div>Purse</div><div>${sol} SOL ${st.paid === 1 ? `→ <a class="mono" href="${ex('address', st.leader)}">${short(st.leader)}</a>` : st.paid === 2 ? '→ house' : 'in escrow'} · contest account <a class="mono" href="${ex('address', st.address)}">${short(st.address)}</a></div>
-      ${st.revealed ? `<div>Answer</div><div><b class="mono" style="color:var(--green)">${esc(st.answer)}</b> · matches the seal (checked by the program)</div>` : ''}</div>
+      <div>Purse</div><div>${sol} devnet SOL ${st.paid === 1 ? `→ <a class="mono" href="${ex('address', st.leader)}">${short(st.leader)}</a>` : st.paid === 2 ? '→ house' : 'in escrow'} · contest account <a class="mono" href="${ex('address', st.address)}">${short(st.address)}</a></div>
+      ${st.revealed ? `<div>Answer</div><div><b class="mono" style="color:var(--green)">${esc(st.answer)}</b> · matches the seal (checked by the program)</div>` : ''}
+      ${st.revealed && (!st.paid || st.settled === st.entryCount) ? `<div>Settled</div><div>${st.settled} of ${st.entryCount} entries</div>` : ''}</div>
       ${rows.length ? `<table><thead><tr><th>#</th><th>Solver</th><th>Slot</th><th>State</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>` : '<div class="status">No entries yet. Be the first.</div>'}
+      ${phase === 'settling' ? `<div class="row"><button class="btn small settleall">Settle all ${pendingSettle}</button></div>` : ''}
       ${phase === 'payable' ? `<div class="row"><button class="btn small payout">Trigger payout</button></div>` : ''}<div class="status act"></div>`;
     const act = out.querySelector('.act');
-    const run = async (label, build) => {
-      if (!address()) { act.className = 'status act bad'; act.innerHTML = 'Create a wallet first (<a href="#start">ten seconds</a>); claims and payouts need a fee payer.'; return; }
-      act.className = 'status act'; act.textContent = label + '…';
-      try { const sig = await sendTx(new web3.Transaction().add(build())); act.className = 'status act ok'; act.innerHTML = `Done. <a href="${ex('tx', sig)}">tx</a>`; setTimeout(() => renderEscrow(card, c), 1200); }
-      catch (e) { act.className = 'status act bad'; act.textContent = explainError(e); }
+    const run = async (label, builds) => {
+      if (!address()) { act.className = 'status act bad'; act.innerHTML = 'Create a wallet first (<a href="#start">ten seconds</a>); settling and payouts need a fee payer.'; return; }
+      try {
+        let last;
+        for (let i = 0; i < builds.length; i++) { act.className = 'status act'; act.textContent = `${label}${builds.length > 1 ? ` (${i + 1} of ${builds.length})` : ''}…`; last = await sendTx(builds[i]()); }
+        act.className = 'status act ok'; act.innerHTML = `Done. <a href="${ex('tx', last)}">tx</a>`; setTimeout(() => renderEscrow(card, c), 1200);
+      } catch (e) { act.className = 'status act bad'; act.textContent = explainError(e); }
     };
-    out.querySelectorAll('.claim').forEach(b => b.onclick = () => run('Claiming', () => ixClaim(web3, { contest: st.address, entry: b.dataset.entry })));
-    const pb = out.querySelector('.payout'); if (pb) pb.onclick = () => run('Paying out', () => ixPayout(web3, { contest: st.address, recipient: st.leader || st.house }));
+    out.querySelectorAll('.settle').forEach(b => b.onclick = () => run('Settling', [() => new web3.Transaction().add(ixSettle(web3, { contest: st.address, entry: b.dataset.entry }))]));
+    const sa = out.querySelector('.settleall'); if (sa) sa.onclick = () => run('Settling', settleAllTxs(web3, st).map(tx => () => tx));
+    const pb = out.querySelector('.payout'); if (pb) pb.onclick = () => run('Paying out', [() => new web3.Transaction().add(ixPayout(web3, { contest: st.address, recipient: st.leader || st.house }))]);
   } catch (e) { out.innerHTML = `<div class="status bad">Could not read the program: ${esc(e.message || e)}. Try again, or add ?rpc=&lt;your devnet RPC&gt; to the URL.</div>`; }
 }
 
@@ -378,6 +400,23 @@ async function submit(c, inputEl, statusEl, card) {
 }
 
 const contests = await (await fetch('./contests.json', { cache:'no-store' })).json();
+(async () => {
+  try {
+    const info = await conn.getParsedAccountInfo(new web3.PublicKey(PROGRAM_ID), 'confirmed');
+    const pd = info.value?.data?.parsed?.info?.programData;
+    const pdi = pd ? await conn.getParsedAccountInfo(new web3.PublicKey(pd), 'confirmed') : null;
+    const auth = pdi?.value?.data?.parsed?.info?.authority;
+    $('#pf-auth').innerHTML = auth
+      ? `Held by Scrypt's house key <a class="mono" href="${ex('address', auth)}">${short(auth)}</a>, read live from chain. Until it is frozen, the house could upgrade the program; we freeze it before submission.`
+      : `<b style="color:var(--green)">Frozen.</b> No one, including Scrypt, can change this program again (read live from chain).`;
+  } catch { $('#pf-auth').textContent = 'Could not read the program account right now.'; }
+  const pf = contests.find(c => c.proof)?.proof;
+  if (pf) {
+    $('#pf-house').innerHTML = `ESC-003: the house tries to reveal a different answer, and the program rejects it (“${esc(pf.houseChangesAnswer.error)}”). <a href="${ex('tx', pf.houseChangesAnswer.sig)}">failed transaction</a>`;
+    $('#pf-enter').innerHTML = `ESC-003: the house wallet tries to enter its own contest (“${esc(pf.houseEnters.error)}”). <a href="${ex('tx', pf.houseEnters.sig)}">failed transaction</a>`;
+    $('#pf-copy').innerHTML = `ESC-003: a wallet re-posts the winner's sealed hash. It <a href="${ex('tx', pf.copierSettled)}">settles as wrong</a>, a payout to it is rejected (“${esc(pf.payoutToCopier.error)}”, <a href="${ex('tx', pf.payoutToCopier.sig)}">failed transaction</a>), and the <a href="${ex('tx', pf.payout)}">honest winner is paid</a>.`;
+  }
+})();
 const list = $('#list'); list.innerHTML = '';
 let legacyShown = false;
 for (const c of contests) {

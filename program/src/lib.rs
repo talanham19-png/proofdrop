@@ -8,12 +8,18 @@
 //!   0 CreateContest  house locks commit + purse in the contest PDA (escrow)
 //!   1 Submit         one sealed entry per wallet, only while slot <= close_slot
 //!   2 Reveal         house reveals salt+answer after close; rejected unless it matches the commit
-//!   3 Claim          anyone points at an entry; if correct and earlier than the current best, it becomes best
-//!   4 Payout         after the claim window, anyone triggers payment of the purse to the best entry
-//!                    (or back to the house if nobody was right)
+//!   3 Settle         anyone settles an entry after the reveal: the program recomputes its hash from the
+//!                    revealed answer and the entry's own signer, marks it settled, and keeps the earliest
+//!                    correct entry as leader. Each entry settles exactly once.
+//!   4 Payout         once EVERY entry is settled, anyone triggers payment: the purse goes to the earliest
+//!                    correct entry, or back to the house only if every entry was proven wrong.
 //!
-//! If the house never reveals, the purse can never leave escrow: withholding a
-//! reveal can't save the house its money, so it has no reason to withhold.
+//! Rules this makes true on chain:
+//!   - the house cannot change the answer (reveal must match the commit);
+//!   - the house wallet cannot enter its own contest;
+//!   - the earliest correct entry wins, whoever settles it, and no correct entry can be skipped;
+//!   - the purse returns to the house only if every entry is wrong;
+//!   - if the house never reveals, the purse can never leave escrow, so withholding saves it nothing.
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -46,7 +52,7 @@ const C_ID_LEN: usize = 34; //        u8
 const C_ID: usize = 35; //            16
 const C_COMMIT: usize = 51; //        32
 const C_CLOSE: usize = 83; //         u64  last slot that accepts entries
-const C_CLAIM_SLOTS: usize = 91; //   u64  claim window length after reveal
+const C_CLAIM_SLOTS: usize = 91; //   u64  reserved (v2.0 claim window; unused since v2.1)
 const C_PURSE: usize = 99; //         u64  lamports in escrow
 const C_REVEALED: usize = 107; //     u8
 const C_REVEAL_SLOT: usize = 108; //  u64
@@ -57,6 +63,7 @@ const C_BEST_SLOT: usize = 181; //    u64  NONE_SLOT when nobody
 const C_ENTRIES: usize = 189; //      u32
 const C_PAID: usize = 193; //         u8   0 open, 1 paid to winner, 2 refunded to house
 const C_BEST_IDX: usize = 194; //     u32  submission index of the leader (slot tie-break)
+const C_SETTLED: usize = 198; //      u32  entries settled so far (v2.1)
 
 // Entry layout
 const E_TAG: usize = 0;
@@ -66,6 +73,8 @@ const E_SOLVER: usize = 34; //   32
 const E_HASH: usize = 66; //     32
 const E_SLOT: usize = 98; //     u64
 const E_IDX: usize = 106; //     u32  submission order within the contest
+const E_SETTLED: usize = 110; // u8   1 once settled (v2.1)
+const E_CORRECT: usize = 111; // u8   1 if settled correct (v2.1)
 
 #[derive(Debug)]
 #[repr(u32)]
@@ -84,6 +93,9 @@ pub enum PdError {
     AlreadyPaid,
     WrongWinner,
     NotHouse,
+    NotAllSettled,
+    HouseCannotEnter,
+    AlreadySettled,
 }
 impl From<PdError> for ProgramError {
     fn from(e: PdError) -> Self { ProgramError::Custom(e as u32) }
@@ -111,7 +123,7 @@ pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], data: 
         0 => create_contest(program_id, accounts, rest),
         1 => submit(program_id, accounts, rest),
         2 => reveal(program_id, accounts, rest),
-        3 => claim(program_id, accounts),
+        3 => settle(program_id, accounts),
         4 => payout(program_id, accounts),
         _ => Err(PdError::BadInstruction.into()),
     }
@@ -178,6 +190,7 @@ fn submit(program_id: &Pubkey, accounts: &[AccountInfo], d: &[u8]) -> ProgramRes
     if !solver.is_signer || *sys.key != system_program::id() { return Err(PdError::BadAccount.into()); }
     if d.len() != 32 { return Err(PdError::BadInstruction.into()); }
     load_contest(program_id, contest)?;
+    if rd_pk(&contest.try_borrow_data()?, C_HOUSE) == *solver.key { return Err(PdError::HouseCannotEnter.into()); }
 
     let slot = Clock::get()?.slot;
     let idx;
@@ -242,44 +255,51 @@ fn reveal(program_id: &Pubkey, accounts: &[AccountInfo], d: &[u8]) -> ProgramRes
     Ok(())
 }
 
-/// Anyone may claim on behalf of an entry. The program recomputes the entry's hash from the
-/// revealed answer and the entry's own solver key, and keeps the earliest correct entry.
-fn claim(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+/// Anyone may settle any entry after the reveal. Wrong entries are counted, correct ones compete
+/// for the lead by slot (then submission order). Every entry settles exactly once.
+fn settle(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let it = &mut accounts.iter();
     let contest = next_account_info(it)?;
     let entry = next_account_info(it)?;
     load_contest(program_id, contest)?;
-    if entry.owner != program_id || entry.data_len() != ENTRY_LEN { return Err(PdError::BadAccount.into()); }
-    let e = entry.try_borrow_data()?;
+    if entry.owner != program_id || entry.data_len() != ENTRY_LEN || !entry.is_writable { return Err(PdError::BadAccount.into()); }
+    let mut e = entry.try_borrow_mut_data()?;
     if e[E_TAG] != ENTRY_TAG || rd_pk(&e, E_CONTEST) != *contest.key { return Err(PdError::BadAccount.into()); }
+    if e[E_SETTLED] != 0 { return Err(PdError::AlreadySettled.into()); }
 
     let mut c = contest.try_borrow_mut_data()?;
     if c[C_REVEALED] == 0 { return Err(PdError::NotRevealed.into()); }
-    if Clock::get()?.slot > rd_u64(&c, C_REVEAL_SLOT).saturating_add(rd_u64(&c, C_CLAIM_SLOTS)) {
-        return Err(PdError::ClaimWindowClosed.into());
-    }
+    if c[C_PAID] != 0 { return Err(PdError::AlreadyPaid.into()); }
     let solver = rd_pk(&e, E_SOLVER);
     let id_len = c[C_ID_LEN] as usize;
     let al = c[C_ANS_LEN] as usize;
     let solver_b58 = solver.to_string();
     let h = hashv(&[&c[C_ID..C_ID + id_len], b"|", solver_b58.as_bytes(), b"|", &c[C_ANS..C_ANS + al]]);
-    if h.to_bytes() != e[E_HASH..E_HASH + 32] { return Err(PdError::WrongAnswer.into()); }
+    let correct = h.to_bytes() == e[E_HASH..E_HASH + 32];
 
-    // Earlier slot wins; within a slot, earlier submission order wins.
-    let es = rd_u64(&e, E_SLOT);
-    let bs = rd_u64(&c, C_BEST_SLOT);
-    let better = if bs == NONE_SLOT { true } else if es != bs { es < bs } else {
-        rd_u32(&e, E_IDX) < rd_u32(&c, C_BEST_IDX)
-    };
-    if !better { return Err(PdError::NotEarlier.into()); }
-    c[C_BEST..C_BEST + 32].copy_from_slice(solver.as_ref());
-    wr_u64(&mut c, C_BEST_SLOT, es);
-    c[C_BEST_IDX..C_BEST_IDX + 4].copy_from_slice(&e[E_IDX..E_IDX + 4]);
-    msg!("ProofDrop: correct entry from {} at slot {} is now the leader", solver_b58, es);
+    e[E_SETTLED] = 1;
+    e[E_CORRECT] = correct as u8;
+    let settled = rd_u32(&c, C_SETTLED) + 1;
+    c[C_SETTLED..C_SETTLED + 4].copy_from_slice(&settled.to_le_bytes());
+
+    if correct {
+        let es = rd_u64(&e, E_SLOT);
+        let bs = rd_u64(&c, C_BEST_SLOT);
+        let better = bs == NONE_SLOT || es < bs || (es == bs && rd_u32(&e, E_IDX) < rd_u32(&c, C_BEST_IDX));
+        if better {
+            c[C_BEST..C_BEST + 32].copy_from_slice(solver.as_ref());
+            wr_u64(&mut c, C_BEST_SLOT, es);
+            c[C_BEST_IDX..C_BEST_IDX + 4].copy_from_slice(&e[E_IDX..E_IDX + 4]);
+        }
+        msg!("ProofDrop: entry #{} from {} is CORRECT (slot {}){}", rd_u32(&e, E_IDX), solver_b58, es, if better { "; new leader" } else { "" });
+    } else {
+        msg!("ProofDrop: entry #{} from {} is wrong", rd_u32(&e, E_IDX), solver_b58);
+    }
+    msg!("ProofDrop: {} of {} entries settled", settled, rd_u32(&c, C_ENTRIES));
     Ok(())
 }
 
-/// After the claim window: pay the purse to the leader, or refund the house if nobody was right.
+/// Once every entry is settled: pay the purse to the leader, or refund the house if every entry was wrong.
 /// accounts: contest (w), recipient (w) — must be the leader, or the house when there is none
 fn payout(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let it = &mut accounts.iter();
@@ -290,9 +310,7 @@ fn payout(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         let mut c = contest.try_borrow_mut_data()?;
         if c[C_REVEALED] == 0 { return Err(PdError::NotRevealed.into()); }
         if c[C_PAID] != 0 { return Err(PdError::AlreadyPaid.into()); }
-        if Clock::get()?.slot <= rd_u64(&c, C_REVEAL_SLOT).saturating_add(rd_u64(&c, C_CLAIM_SLOTS)) {
-            return Err(PdError::ClaimWindowOpen.into());
-        }
+        if rd_u32(&c, C_SETTLED) != rd_u32(&c, C_ENTRIES) { return Err(PdError::NotAllSettled.into()); }
         let has_winner = rd_u64(&c, C_BEST_SLOT) != NONE_SLOT;
         let expected = if has_winner { rd_pk(&c, C_BEST) } else { rd_pk(&c, C_HOUSE) };
         if expected != *recipient.key { return Err(PdError::WrongWinner.into()); }
@@ -301,6 +319,6 @@ fn payout(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     };
     **contest.try_borrow_mut_lamports()? = contest.lamports().checked_sub(purse).ok_or(ProgramError::InsufficientFunds)?;
     **recipient.try_borrow_mut_lamports()? = recipient.lamports().checked_add(purse).ok_or(ProgramError::ArithmeticOverflow)?;
-    msg!("ProofDrop: {} lamports paid to {} ({})", purse, recipient.key, if to_winner { "winner" } else { "no correct entry; refunded to house" });
+    msg!("ProofDrop: {} lamports paid to {} ({})", purse, recipient.key, if to_winner { "winner" } else { "every entry was wrong; refunded to house" });
     Ok(())
 }
