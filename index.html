@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ProofDrop · Scrypt</title>
-<meta name="description" content="ProofDrop by Scrypt: puzzle contests where the answer is sealed on Solana before the clue drops, guesses stay hidden until the reveal, and anyone can recompute the winner.">
+<meta name="description" content="ProofDrop by Scrypt: puzzle contests where the answer is sealed on Solana before the clue drops, each guess is bound to its solver's wallet, and a program pays the earliest correct entry. Devnet demo; test tokens with no cash value.">
 <meta property="og:title" content="ProofDrop · Scrypt">
 <meta property="og:description" content="The house can't change the answer, and a Solana program pays the earliest correct solver. Devnet demo.">
 <!-- SLOT og-image: Scout supplies 1200x630 share card -> <meta property="og:image" content="/assets/og.png"> -->
@@ -118,13 +118,13 @@ footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid va
     <div class="kicker">Colosseum · Crypto World's Fair · Solana devnet</div>
     <h1>The house can't change the answer. <em>The program pays the winner.</em></h1>
     <p>The answer is sealed on Solana before the clue drops, and the purse is locked in a program escrow. Your guess is sealed to your own wallet, so it can't be copied by anyone else. After entries close, the program rejects any reveal that doesn't match the seal, keeps the earliest correct wallet, and pays it. Devnet demo: purses are play money with no cash value.</p>
-    <div class="row"><a class="btn" href="#start">Get a wallet in ten seconds</a><a class="btn ghost" href="#contests">See today's puzzle</a></div>
+    <div class="row"><a class="btn" href="#start">Get a free devnet wallet</a><a class="btn ghost" href="#contests">See today's puzzle</a></div>
   </div>
   <div class="hero-art"><img src="assets/scrypt-logo.svg" alt="SCRYPT — the approved Scrypt mark and wordmark"></div>
 </section>
 
 <div class="steps">
-  <div class="step"><b>1 · Commit</b><p>The house posts <span class="mono">sha256(id|salt|answer)</span> to the contest inbox. From that slot on, the answer is fixed.</p></div>
+  <div class="step"><b>1 · Commit</b><p>The house stores <span class="mono">sha256(id|salt|answer)</span> in the contest account and locks the purse there. From that slot on, the answer can't change.</p></div>
   <div class="step"><b>2 · Submit</b><p>You post <span class="mono">sha256(id|wallet|guess)</span>. It's bound to your wallet, so a copied entry never counts for anyone else.</p></div>
   <div class="step"><b>3 · Reveal &amp; payout</b><p>The program rejects any reveal that doesn't match the seal. Every entry is then settled on chain (our reveal script does it at once; anyone can), and the program pays only when all are settled: to the earliest correct entry, or back to the house only if every entry was wrong.</p></div>
 </div>
@@ -168,7 +168,7 @@ footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid va
 <h2 id="contests">Contests</h2>
 <div id="list">Loading…</div>
 
-<h2>Verify any contest <small>read-only</small></h2>
+<h2>Verify a v1 Memo contest <small>read-only</small></h2>
 <div class="card">
   <p style="margin:0;color:var(--muted)">Paste a contest id, its inbox and the house key. Everything is read straight from Solana; nothing passes through us.</p>
   <div class="row"><input id="v-id" placeholder="contest id"><input id="v-inbox" placeholder="inbox address"><input id="v-house" placeholder="house public key"></div>
@@ -177,7 +177,7 @@ footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid va
 </div>
 
 <footer>
-  <div>ProofDrop protocol v1 · SPL Memo plus a 0-lamport touch to a per-contest inbox. No custom program, so nothing to trust but Solana. Devnet only; nothing here has monetary value.</div>
+  <div>ProofDrop escrow program <a class="mono" href="https://explorer.solana.com/address/5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q?cluster=devnet">5en4…a7T1q</a> on Solana devnet. The earlier v1 contests use SPL Memo alone. Devnet only: test tokens with no cash value. The only server code is the small faucet that funds new wallets.</div>
   <div>Open source (MIT) · <a href="https://satoshiscrypt.com">satoshiscrypt.com</a> · Scrypt LLC</div>
 </footer>
 </div>
@@ -367,7 +367,7 @@ async function renderEscrow(card, c) {
       ${phase === 'payable' ? `<div class="row"><button class="btn small payout">Trigger payout</button></div>` : ''}<div class="status act"></div>`;
     const act = out.querySelector('.act');
     const run = async (label, builds) => {
-      if (!address()) { act.className = 'status act bad'; act.innerHTML = 'Create a wallet first (<a href="#start">ten seconds</a>); settling and payouts need a fee payer.'; return; }
+      if (!address()) { act.className = 'status act bad'; act.innerHTML = 'Create a wallet first (<a href="#start">one button</a>); settling and payouts need a fee payer.'; return; }
       try {
         let last;
         for (let i = 0; i < builds.length; i++) { act.className = 'status act'; act.textContent = `${label}${builds.length > 1 ? ` (${i + 1} of ${builds.length})` : ''}…`; last = await sendTx(builds[i]()); }
@@ -382,7 +382,7 @@ async function renderEscrow(card, c) {
 
 async function submit(c, inputEl, statusEl, card) {
   const say = (m, cls='') => { statusEl.className = 'status st ' + cls; statusEl.innerHTML = m; };
-  if (!address()) { say('You need a wallet first. <a href="#start">Create one in ten seconds</a>.', 'bad'); return; }
+  if (!address()) { say('You need a wallet first. <a href="#start">Create one with one button</a>.', 'bad'); return; }
   if (burner && (lastBalance ?? 0) < (c.program === 'v2' ? 2_000_000 : 10_000)) { say('Your wallet has no fuel yet. <a href="#start">Get devnet SOL</a> first.', 'bad'); return; }
   const guess = normalizeAnswer(inputEl.value);
   if (!guess) { say('Type a guess first.', 'bad'); return; }
@@ -392,7 +392,7 @@ async function submit(c, inputEl, statusEl, card) {
     if (c.program === 'v2') tx = new web3.Transaction().add(await ixSubmit(web3, { house: c.house, id: c.contestId, solver: address(), guess }));
     else { const h = await submitHash(c.contestId, address(), guess); tx = buildProtocolTx(web3, { payer: new web3.PublicKey(address()), inbox: c.inbox, memo: memoSubmit(c.contestId, h) }); }
     const sig = await sendTx(tx);
-    say(`Sealed and on chain. Your guess stays hidden until the reveal. <a href="${ex('tx',sig)}">View transaction</a>`, 'ok');
+    say(`Sealed and on chain. It counts only for your wallet; nobody can reuse it. <a href="${ex('tx',sig)}">View transaction</a>`, 'ok');
     inputEl.value = '';
     refresh();
     if (c.program === 'v2') renderEscrow(card, c); else renderVerdict(card.querySelector('.vout'), c.contestId, c.inbox, c.house);
