@@ -1,11 +1,12 @@
 # ProofDrop
 
-**Provably fair puzzle contests on Solana.** The answer is sealed on-chain before the clue drops. Each guess is sealed to the solver's own wallet. When the house reveals, anyone can recompute the winner from public data, so no trusted judge is needed.
+**Provably fair puzzle contests on Solana, with the purse in escrow.** The answer is sealed on chain before the clue drops, and the prize is locked in a program account. Each guess is sealed to the solver's own wallet. When the house reveals, the program checks the reveal against the seal, keeps the earliest correct wallet and pays it. No trusted judge, and no house hand on the money.
 
 Built by [Scrypt](https://satoshiscrypt.com) for the Colosseum **Crypto World's Fair** (Solana track).
 
 - **Live demo:** https://proofdrop-talanham19-pngs-projects.vercel.app (devnet)
-- **Stack:** Solana devnet · SPL Memo program · `@solana/web3.js` · Phantom or an in-browser wallet · static page plus one tiny faucet function (no custom program)
+- **Program (devnet):** [`5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q`](https://explorer.solana.com/address/5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q?cluster=devnet)
+- **Stack:** native Solana program (Rust, `solana-program` 2.2) · `@solana/web3.js` · Phantom or an in-browser wallet · static page plus one tiny faucet function. v1 runs on SPL Memo alone.
 
 ---
 
@@ -19,7 +20,30 @@ Skill contests with prizes (cipher hunts, puzzle races, trivia, ARGs) run on tru
 
 Scrypt runs monthly cipher Sprints with cash purses. Today we enforce these rules with salted hashes in our own database, but a database is something the house controls. ProofDrop moves the promise onto a public ledger the house *can't* control.
 
-## How it works
+## v2: the escrow program (`program/`)
+
+| # | Instruction | Who | Rule enforced on chain |
+|---|---|---|---|
+| 0 | `CreateContest` | house | Stores `sha256(id\|salt\|ANSWER)`, the closing slot and the claim window; moves the purse into the contest PDA |
+| 1 | `Submit` | solver | Only while `slot ≤ close`; one entry PDA per wallet; stores `sha256(id\|wallet\|ANSWER)` and the slot |
+| 2 | `Reveal` | house | Only after close; **rejected unless it hashes to the commitment** |
+| 3 | `Claim` | anyone | Recomputes the entry's hash from the revealed answer and the entry's *own* signer; keeps the earliest correct slot |
+| 4 | `Payout` | anyone | After the claim window, sends the purse to the leader, or back to the house if nobody was right |
+
+If the house never reveals, the purse can't leave escrow, so withholding a reveal can't save it money. The program does all hashing with the `sol_sha256` syscall and base58-encodes the solver key on chain, so its commitments are byte-for-byte the v1 Memo commitments: the same browser code seals guesses for both.
+
+**Tested adversarially** (`test/escrow.test.mjs`, 17 checks, passing on a local validator and on devnet): a double entry, a late entry, an early reveal, a non-house reveal, the house changing its answer, a wrong-answer claim, a copied-hash claim (Eve re-posts Bob's sealed hash), a later correct entry trying to keep the lead, payout during the window, payout to the wrong wallet, and a double payout. All are rejected, and the earliest correct solver receives exactly the purse.
+
+```bash
+cd program && cargo-build-sbf                  # Agave 2.3 toolchain
+solana program deploy --use-rpc target/deploy/proofdrop.so
+node test/escrow.test.mjs                       # against solana-test-validator --bpf-program <id> proofdrop.so
+node scripts/house.mjs v2-create keys/house.json PD-004 "answer" 1 216000 21600   # prints SALT, keep secret
+node scripts/house.mjs v2-reveal keys/house.json PD-004 <salt> "answer"
+node scripts/house.mjs v2-settle keys/house.json <housePubkey> PD-004
+```
+
+## v1: how the Memo protocol works
 
 Every contest has its own **inbox** address. Every protocol transaction touches the inbox with a 0-lamport transfer, so the inbox's signature history is the complete, ordered public record of the contest. Each transaction carries one SPL Memo:
 
@@ -37,7 +61,7 @@ Every contest has its own **inbox** address. Every protocol transaction touches 
 - The winner is the earliest eligible submission by slot, with order within the inbox history breaking ties.
 - Answers are normalised (case- and punctuation-insensitive) before hashing.
 
-**Why no custom program?** The fairness comes from commitments and public ordering, and Solana already provides both. With no program, there's no upgrade authority to trust and nothing to audit except about 80 lines of verifier code. A program version (PDA per contest, on-chain close time, escrowed purse) is the natural next step; see the roadmap.
+**Why keep v1?** It needs nothing but Solana itself: no program, no upgrade authority, about 80 lines of verifier. It proves who won. v2 goes further and *pays* who won.
 
 ## Try it (no install)
 
@@ -90,7 +114,7 @@ Commit, then sealed entries, then reveal and public recount. That covers more th
 
 ## Roadmap
 
-- **Anchor program:** contest PDA with an on-chain close slot and an escrowed purse paid to the verified winner.
+- **Mainnet:** embedded wallets (email sign-in) in place of browser keys, house-sponsored fees, an SPL-token purse (USDC), and a frozen upgrade authority.
 - **Location-gated clues:** clue fragments unlocked only at a physical place, with the location proof committed alongside the guess. This is Scrypt's city Sprints, on chain.
 - **Integration with satoshiscrypt.com's monthly Sprint**, so every real contest publishes its commitment on Solana.
 

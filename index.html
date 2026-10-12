@@ -79,6 +79,8 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px}
 th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--dim);font-weight:400;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
 .win{color:var(--orange);font-weight:500}
+.purse{display:inline-block;font:500 12px var(--mono);color:#04060f;background:var(--green);border-radius:999px;padding:3px 10px;margin:0 6px 6px 0;letter-spacing:.08em}
+.legacy-h{margin:34px 0 6px;color:var(--dim);font-size:11px;letter-spacing:.2em;text-transform:uppercase}
 .verdict{margin-top:12px;padding:12px 14px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);font-size:13px}
 /* wallet onboarding */
 .start{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
@@ -113,7 +115,7 @@ footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid va
   <div>
     <div class="kicker">Colosseum · Crypto World's Fair · Solana devnet</div>
     <h1>Puzzle contests nobody can rig. <em>Not even the house.</em></h1>
-    <p>The answer is sealed on Solana before the clue drops. Your guess is sealed to your own wallet, so nobody can copy it off the chain. When the house reveals, anyone can recompute the winner from public data. No judge to trust.</p>
+    <p>The answer is sealed on Solana before the clue drops, and the purse is locked in a program escrow. Your guess is sealed to your own wallet, so nobody can copy it off the chain. When the house reveals, the program checks it, finds the earliest correct wallet and pays it. No judge to trust.</p>
     <div class="row"><a class="btn" href="#start">Get a wallet in ten seconds</a><a class="btn ghost" href="#contests">See today's puzzle</a></div>
   </div>
   <div class="hero-art"><img src="assets/scrypt-logo.svg" alt="SCRYPT — the approved Scrypt mark and wordmark"></div>
@@ -122,7 +124,7 @@ footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid va
 <div class="steps">
   <div class="step"><b>1 · Commit</b><p>The house posts <span class="mono">sha256(id|salt|answer)</span> to the contest inbox. From that slot on, the answer is fixed.</p></div>
   <div class="step"><b>2 · Submit</b><p>You post <span class="mono">sha256(id|wallet|guess)</span>. A correct guess looks like noise until the reveal and only counts for the wallet that sent it.</p></div>
-  <div class="step"><b>3 · Reveal &amp; verify</b><p>The house posts salt and answer. The earliest matching submission wins, and this page re-checks it straight from the chain.</p></div>
+  <div class="step"><b>3 · Reveal &amp; payout</b><p>The program refuses any reveal that doesn't match the seal, keeps the earliest correct wallet, and pays it the purse from escrow. No judge, and no house hand on the money.</p></div>
 </div>
 
 <h2 id="start">Start <small>no install needed</small></h2>
@@ -169,6 +171,7 @@ import * as web3 from 'https://esm.sh/@solana/web3.js@1.98.0';
 import bs58 from 'https://esm.sh/bs58@6.0.0';
 import { normalizeAnswer, submitHash, memoSubmit, adjudicate } from './lib/protocol.mjs';
 import { buildProtocolTx, fetchRecords } from './lib/chain.mjs';
+import { PROGRAM_ID, ixSubmit, ixClaim, ixPayout, loadContest, explainError } from './lib/escrow.mjs';
 
 const RPC = new URLSearchParams(location.search).get('rpc') || 'https://api.devnet.solana.com';
 const conn = new web3.Connection(RPC, 'confirmed');
@@ -312,45 +315,93 @@ async function renderVerdict(el, id, inbox, house) {
   } catch (e) { el.innerHTML = `<div class="status bad">Could not read the chain: ${esc(e.message)}. Try again, or add ?rpc=&lt;your devnet RPC&gt; to the URL.</div>`; }
 }
 
+async function renderEscrow(card, c) {
+  const out = card.querySelector('.vout');
+  out.innerHTML = '<div class="status">Reading the contest from the program…</div>';
+  try {
+    const [st, slot] = await Promise.all([loadContest(web3, conn, c.house, c.contestId), conn.getSlot('confirmed')]);
+    if (!st.exists) { out.innerHTML = '<div class="status bad">Contest account not found on chain.</div>'; return; }
+    const claimEnd = st.revealSlot + st.claimSlots;
+    const phase = st.paid ? (st.paid === 1 ? 'paid' : 'refunded') : !st.revealed ? (slot <= st.closeSlot ? 'open' : 'awaiting') : (slot <= claimEnd ? 'claiming' : 'payable');
+    const eta = s => { const sec = Math.max(0, (s - slot) * 0.4); return sec > 86400 ? `${(sec / 86400).toFixed(1)} days` : sec > 3600 ? `${(sec / 3600).toFixed(1)} hours` : `${Math.max(1, Math.ceil(sec / 60))} min`; };
+    const sol = (st.purse / 1e9).toLocaleString(undefined, { maximumFractionDigits: 4 });
+    const pill = card.querySelector('.purse'); if (pill) pill.textContent = `${sol} SOL purse`;
+    const phaseText = {
+      open: `Entries open. They close at slot ${st.closeSlot.toLocaleString()} (about ${eta(st.closeSlot)} from now).`,
+      awaiting: 'Entries closed. Waiting for the house to reveal; until it does, the purse cannot leave escrow.',
+      claiming: `Revealed and verified by the program. Claim window ends in about ${eta(claimEnd)}; anyone can claim for a correct entry.`,
+      payable: 'Claim window over. Anyone can trigger the payout to the leader.',
+      paid: `Paid: the program sent ${sol} SOL from escrow to the earliest correct wallet.`,
+      refunded: 'Nobody was right, so the program returned the purse to the house.',
+    }[phase];
+    const me = address();
+    const rows = st.entries.map(e => {
+      let state = !st.revealed ? 'sealed' : !e.correct ? 'wrong' : st.leader === e.solver ? `<span class="win">${st.paid === 1 ? 'PAID' : 'LEADER'}</span>` : 'correct, later';
+      const act = phase === 'claiming' && e.correct && st.leader !== e.solver && (st.leaderSlot === null || e.slot <= st.leaderSlot)
+        ? `<button class="btn ghost small claim" data-entry="${e.address}">Claim</button>` : `<a href="${ex('address', e.address)}">entry</a>`;
+      return `<tr><td>#${e.idx + 1}</td><td class="mono"><a href="${ex('address', e.solver)}">${short(e.solver)}</a>${e.solver === me ? ' (you)' : ''}</td><td>${e.slot}</td><td>${state}</td><td>${act}</td></tr>`;
+    });
+    out.innerHTML = `<div class="kv"><div>Status</div><div>${phaseText}</div>
+      <div>Purse</div><div>${sol} SOL ${st.paid === 1 ? `→ <a class="mono" href="${ex('address', st.leader)}">${short(st.leader)}</a>` : st.paid === 2 ? '→ house' : 'in escrow'} · contest account <a class="mono" href="${ex('address', st.address)}">${short(st.address)}</a></div>
+      ${st.revealed ? `<div>Answer</div><div><b class="mono" style="color:var(--green)">${esc(st.answer)}</b> · matches the seal (checked by the program)</div>` : ''}</div>
+      ${rows.length ? `<table><thead><tr><th>#</th><th>Solver</th><th>Slot</th><th>State</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>` : '<div class="status">No entries yet. Be the first.</div>'}
+      ${phase === 'payable' ? `<div class="row"><button class="btn small payout">Trigger payout</button></div>` : ''}<div class="status act"></div>`;
+    const act = out.querySelector('.act');
+    const run = async (label, build) => {
+      if (!address()) { act.className = 'status act bad'; act.innerHTML = 'Create a wallet first (<a href="#start">ten seconds</a>); claims and payouts need a fee payer.'; return; }
+      act.className = 'status act'; act.textContent = label + '…';
+      try { const sig = await sendTx(new web3.Transaction().add(build())); act.className = 'status act ok'; act.innerHTML = `Done. <a href="${ex('tx', sig)}">tx</a>`; setTimeout(() => renderEscrow(card, c), 1200); }
+      catch (e) { act.className = 'status act bad'; act.textContent = explainError(e); }
+    };
+    out.querySelectorAll('.claim').forEach(b => b.onclick = () => run('Claiming', () => ixClaim(web3, { contest: st.address, entry: b.dataset.entry })));
+    const pb = out.querySelector('.payout'); if (pb) pb.onclick = () => run('Paying out', () => ixPayout(web3, { contest: st.address, recipient: st.leader || st.house }));
+  } catch (e) { out.innerHTML = `<div class="status bad">Could not read the program: ${esc(e.message || e)}. Try again, or add ?rpc=&lt;your devnet RPC&gt; to the URL.</div>`; }
+}
+
 async function submit(c, inputEl, statusEl, card) {
   const say = (m, cls='') => { statusEl.className = 'status st ' + cls; statusEl.innerHTML = m; };
   if (!address()) { say('You need a wallet first. <a href="#start">Create one in ten seconds</a>.', 'bad'); return; }
-  if (burner && (lastBalance ?? 0) < 10_000) { say('Your wallet has no fuel yet. <a href="#start">Get devnet SOL</a> first.', 'bad'); return; }
+  if (burner && (lastBalance ?? 0) < (c.program === 'v2' ? 2_000_000 : 10_000)) { say('Your wallet has no fuel yet. <a href="#start">Get devnet SOL</a> first.', 'bad'); return; }
   const guess = normalizeAnswer(inputEl.value);
   if (!guess) { say('Type a guess first.', 'bad'); return; }
   say('Sealing your guess to your wallet…');
   try {
-    const h = await submitHash(c.contestId, address(), guess);
-    const tx = buildProtocolTx(web3, { payer: new web3.PublicKey(address()), inbox: c.inbox, memo: memoSubmit(c.contestId, h) });
+    let tx;
+    if (c.program === 'v2') tx = new web3.Transaction().add(await ixSubmit(web3, { house: c.house, id: c.contestId, solver: address(), guess }));
+    else { const h = await submitHash(c.contestId, address(), guess); tx = buildProtocolTx(web3, { payer: new web3.PublicKey(address()), inbox: c.inbox, memo: memoSubmit(c.contestId, h) }); }
     const sig = await sendTx(tx);
     say(`Sealed and on chain. Your guess stays hidden until the reveal. <a href="${ex('tx',sig)}">View transaction</a>`, 'ok');
     inputEl.value = '';
     refresh();
-    renderVerdict(card.querySelector('.vout'), c.contestId, c.inbox, c.house);
-  } catch (e) { say('Not submitted: ' + esc(e.message || e), 'bad'); }
+    if (c.program === 'v2') renderEscrow(card, c); else renderVerdict(card.querySelector('.vout'), c.contestId, c.inbox, c.house);
+  } catch (e) { say('Not submitted: ' + esc(c.program === 'v2' ? explainError(e) : (e.message || e)), 'bad'); }
 }
 
 const contests = await (await fetch('./contests.json', { cache:'no-store' })).json();
 const list = $('#list'); list.innerHTML = '';
+let legacyShown = false;
 for (const c of contests) {
+  if (c.legacy && !legacyShown) { legacyShown = true; const h = document.createElement('div'); h.className = 'legacy-h'; h.textContent = 'Earlier contests · Memo protocol v1 (verifiable, house pays manually)'; list.appendChild(h); }
   const el = document.createElement('div'); el.className = 'card' + (c.featured ? ' featured' : '');
   el.id = c.contestId;
   el.innerHTML = `<h3>${esc(c.title)}</h3>${c.subtitle ? `<div class="sub">${esc(c.subtitle)}</div>` : ''}
-    <span class="tag ${c.status}">${c.status}</span><span class="tag">${esc(c.contestId)}</span>
+    ${c.program === 'v2' ? '<span class="purse">escrow</span>' : ''}<span class="tag ${c.status}">${c.status}</span><span class="tag">${esc(c.contestId)}</span>${c.program === 'v2' ? '<span class="tag">program</span>' : '<span class="tag">memo v1</span>'}
     <div class="clue">${c.clue}</div>
     ${c.hint ? `<details class="hint"><summary>Hint</summary>${esc(c.hint)}</details>` : ''}
     <div class="kv"><div>House</div><div class="mono"><a href="${ex('address',c.house)}">${c.house}</a></div>
-    <div>Contest inbox</div><div class="mono"><a href="${ex('address',c.inbox)}">${c.inbox}</a></div>
+    ${c.program === 'v2' ? `<div>Program</div><div class="mono"><a href="${ex('address',PROGRAM_ID)}">${PROGRAM_ID}</a></div>` : `<div>Contest inbox</div><div class="mono"><a href="${ex('address',c.inbox)}">${c.inbox}</a></div>`}
     <div>Sealed answer</div><div class="mono"><a href="${ex('tx',c.commitSig)}">${c.commitHash}</a></div></div>
     ${c.status==='open' ? `<div class="row"><input placeholder="Your answer" class="guess" aria-label="Your answer for ${esc(c.contestId)}"><button class="btn seal">Seal &amp; submit</button></div><div class="status st"></div>` : ''}
-    <div class="row"><button class="btn ghost small ver">Verify from chain</button></div><div class="vout"></div>`;
+    <div class="row"><button class="btn ghost small ver">${c.program === 'v2' ? 'Refresh from chain' : 'Verify from chain'}</button></div><div class="vout"></div>`;
   list.appendChild(el);
-  el.querySelector('.ver').onclick = () => renderVerdict(el.querySelector('.vout'), c.contestId, c.inbox, c.house);
+  const show = () => c.program === 'v2' ? renderEscrow(el, c) : renderVerdict(el.querySelector('.vout'), c.contestId, c.inbox, c.house);
+  el.querySelector('.ver').onclick = show;
   if (c.status==='open') {
     const inp = el.querySelector('.guess');
     el.querySelector('.seal').onclick = () => submit(c, inp, el.querySelector('.st'), el);
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(c, inp, el.querySelector('.st'), el); });
-  } else renderVerdict(el.querySelector('.vout'), c.contestId, c.inbox, c.house);
+  }
+  if (c.status !== 'open' || c.program === 'v2') show();
 }
 $('#v-go').onclick = () => renderVerdict($('#v-out'), $('#v-id').value.trim(), $('#v-inbox').value.trim(), $('#v-house').value.trim());
 refresh();

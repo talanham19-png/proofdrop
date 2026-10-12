@@ -2,15 +2,28 @@
   {
     "contestId": "PD-003",
     "title": "The Fair Ledger",
-    "subtitle": "A puzzle for the Crypto World's Fair",
+    "subtitle": "A puzzle for the Crypto World's Fair · 1 SOL purse held in escrow by the program",
     "status": "open",
     "featured": true,
     "clue": "<p>Every fair is a block. These eight arrived out of order.</p><ol class=\"blocks\"><li><span class=\"off\">[8]</span> A golden-glass globe on a steel truss over Tennessee. Television later called it a wig.</li><li><span class=\"off\">[5]</span> Iron and nearly 300,000 panes of glass, raised in Hyde Park for the first fair of them all.</li><li><span class=\"off\">[5]</span> A steel tree, thirty-seven metres tall, that lit up and sang over the lake in Milan.</li><li><span class=\"off\">[1]</span> Under the Needle, a single concrete beam carried visitors from downtown to the fairground. It still runs.</li><li><span class=\"off\">[3]</span> A dome of steel lace at the heart of a desert fair that opened a year late.</li><li><span class=\"off\">[8]</span> Three hundred artists signed a protest against it. It was meant to come down after twenty years.</li><li><span class=\"off\">[5]</span> Taro Okamoto gave it three faces and drove it up through the roof of the festival plaza.</li><li><span class=\"off\">[3]</span> Buckminster Fuller's sphere of steel and acrylic held America's pavilion on an island in the St. Lawrence.</li></ol><p>Name each landmark in plain English (no spaces, no city). Put the blocks in height order, oldest fair first, and take the letter at each block's offset. The chain spells what every World's Fair has ever been selling.</p>",
     "hint": "Height means year. The first block is London's; the last opened in 2021 under a 2020 name.",
-    "inbox": "B6eAZEGBMyHEHuezoM9btPY1DcPBfqLkYwpx2oFoU5dy",
     "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
-    "commitSig": "4c4fAEbwwnRA9JXk7cX1xEubLyZ7d2Ak1rJxAZ1F2gaZNQUb9nXyFSZYo3eHmGkwpiUvkLATAhEAwRXAaaS8M5Vp",
-    "commitHash": "163c8fdadc054bb5d17b75ec2dbf4ba4f7898cb2c598d0fe12228942ac55df81"
+    "commitSig": "383iNbHTQKiwrfUEmWUZ2hCg3y1j1HimWVPr41WqK4wrYYBm1exvCQPhKV7yaeMNX8m9NcUYbngBfGgfJkcV3R38",
+    "commitHash": "c774ba701d50541581bd7710d680f4d3accc79c853995cecbfc43684afee1d3f",
+    "program": "v2",
+    "contest": "J1oufEb3DCGeLwjX9EGtNpdNo33a3DT3epbekMXFbCiz"
+  },
+  {
+    "contestId": "ESC-001",
+    "title": "The Founder's Line",
+    "subtitle": "A finished escrowed contest: entries, reveal, claim and payout, all enforced on chain",
+    "status": "closed",
+    "program": "v2",
+    "clue": "Shift every letter back three: <b>GRQ'W WUXVW, YHULIB</b>",
+    "contest": "BTMeYaLgFi5C894jU7Y5HiSaZEizu8im4jH2uTURa2do",
+    "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
+    "commitSig": "3DYwJbqUf6h5N5JL3t4ZWXAgPeiwUCYf3hxUDAVhjXfpveRxbDyeZCUgBB7tJXR1ADURMyXex5m5gq9JNE9tLiiG",
+    "commitHash": "7999869e17259c80c465e9796d167673c69ec279e66c2f034b4467b625ac19e5"
   },
   {
     "contestId": "PD-002",
@@ -20,7 +33,8 @@
     "inbox": "AxS2t54ythAVB7nVP1PQXifhuKCYcyEDsYdimH5J4SNx",
     "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
     "commitSig": "5hQgBEznPst9qs4QAE478yX1vrDjHg3pjmyCt6gFGYZvrr5hDq7m6S3zkA93JZK86LRPntfzog1UBaz2S6U9yQ5B",
-    "commitHash": "4b38dbfa180bb5aab12e00c393908d240b29e5ab22f3cc633952cc5c4023ce6b"
+    "commitHash": "4b38dbfa180bb5aab12e00c393908d240b29e5ab22f3cc633952cc5c4023ce6b",
+    "legacy": true
   },
   {
     "contestId": "PD-001",
@@ -30,6 +44,7 @@
     "inbox": "3YmiYAVEnbG5Na3vi1yYNaiKeDYWvuoNE7upvvJVmSUp",
     "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
     "commitSig": "2de2nAvqGKPnKZFxht7hsK6Cb4F5i2MpMraEred7E1SM5eWPTEyNsdXUq62pojxottPuoFJQCTWox7yBjuzqRfQL",
-    "commitHash": "ba8ca7433ed7dc838235749192624f3b7bdcfb6950d21220a15093ed5e6c8e64"
+    "commitHash": "ba8ca7433ed7dc838235749192624f3b7bdcfb6950d21220a15093ed5e6c8e64",
+    "legacy": true
   }
 ]

@@ -6,11 +6,18 @@
 //   node scripts/house.mjs submit <solverKey> <contestId> <inbox> <guess>
 //   node scripts/house.mjs reveal <houseKey> <contestId> <inbox> <salt> <answer>
 //   node scripts/house.mjs verify <contestId> <inbox> <housePubkey>
+// v2 (escrow program):
+//   v2-create <houseKey> <id> <answer> <purseSOL> <openSlots> <claimSlots>   -> prints SALT (keep secret)
+//   v2-submit <solverKey> <housePubkey> <id> <guess>
+//   v2-reveal <houseKey> <id> <salt> <answer>
+//   v2-settle <payerKey> <housePubkey> <id>      claim correct entries, then pay out after the window
+//   v2-show <housePubkey> <id>
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import * as web3 from '@solana/web3.js';
 import { commitHash, submitHash, memoCommit, memoSubmit, memoReveal, adjudicate } from '../lib/protocol.mjs';
 import { buildProtocolTx, fetchRecords } from '../lib/chain.mjs';
+import { ixCreate, ixSubmit, ixReveal, ixClaim, ixPayout, loadContest, pdas, explainError } from '../lib/escrow.mjs';
 
 const RPC = process.env.RPC_URL || web3.clusterApiUrl('devnet');
 const conn = new web3.Connection(RPC, 'confirmed');
@@ -58,6 +65,40 @@ if (cmd === 'keygen') {
     winner: r.winner && { signer: r.winner.signer, slot: r.winner.slot, sig: r.winner.sig },
     notes: r.notes,
   }, null, 2));
+} else if (cmd === 'v2-create') {
+  // v2-create <houseKey> <id> <answer> <purseSOL> <openSlots> <claimSlots>   -> prints contest + SALT (keep secret)
+  const [keyf, id, answer, purseSol, openSlots, claimSlots] = a;
+  const kp = load(keyf);
+  const salt = crypto.randomBytes(16).toString('hex');
+  const commitHex = await commitHash(id, salt, answer);
+  const closeSlot = (await conn.getSlot('confirmed')) + Number(openSlots);
+  const sig = await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixCreate(web3, { house: kp.publicKey, id, commitHex, closeSlot, claimSlots: Number(claimSlots), purseLamports: Math.round(Number(purseSol) * 1e9) })), [kp], { commitment: 'confirmed' });
+  console.log(JSON.stringify({ program: 'v2', contestId: id, contest: pdas(web3, kp.publicKey, id).contest.toBase58(), house: kp.publicKey.toBase58(), createSig: sig, commitHash: commitHex, closeSlot, claimSlots: Number(claimSlots), salt }, null, 2));
+} else if (cmd === 'v2-submit') {
+  const [keyf, house, id, guess] = a; const kp = load(keyf);
+  try { console.log(await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(await ixSubmit(web3, { house, id, solver: kp.publicKey, guess })), [kp], { commitment: 'confirmed' })); }
+  catch (e) { console.log('rejected:', explainError(e)); }
+} else if (cmd === 'v2-reveal') {
+  const [keyf, id, salt, answer] = a; const kp = load(keyf);
+  try { console.log(await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixReveal(web3, { house: kp.publicKey, id, salt, answer })), [kp], { commitment: 'confirmed' })); }
+  catch (e) { console.log('rejected:', explainError(e)); }
+} else if (cmd === 'v2-settle') {
+  // v2-settle <payerKey> <house> <id> : claims every correct entry (earliest wins), then pays out once the window closes
+  const [keyf, house, id] = a; const kp = load(keyf);
+  const st = await loadContest(web3, conn, house, id);
+  for (const e of st.entries.filter(e => e.correct)) {
+    try { await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixClaim(web3, { contest: st.address, entry: e.address })), [kp], { commitment: 'confirmed' }); console.log('claimed', e.solver); }
+    catch (err) { console.log('claim', e.solver, '->', explainError(err)); }
+  }
+  const after = await loadContest(web3, conn, house, id);
+  const end = after.revealSlot + after.claimSlots;
+  while ((await conn.getSlot('confirmed')) <= end) await new Promise(r => setTimeout(r, 1000));
+  const recipient = after.leader || after.house;
+  try { console.log('paid', recipient, await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixPayout(web3, { contest: st.address, recipient })), [kp], { commitment: 'confirmed' })); }
+  catch (err) { console.log('payout ->', explainError(err)); }
+} else if (cmd === 'v2-show') {
+  const [house, id] = a;
+  console.log(JSON.stringify(await loadContest(web3, conn, house, id), null, 2));
 } else {
   console.log('usage: see header');
 }

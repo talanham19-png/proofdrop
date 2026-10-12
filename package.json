@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node test/protocol.test.mjs",
+    "test:escrow": "node test/escrow.test.mjs",
     "house": "node scripts/house.mjs"
   },
   "keywords": ["solana", "puzzle", "commit-reveal", "memo", "provably-fair"],

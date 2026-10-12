@@ -1,0 +1,21 @@
+[package]
+name = "proofdrop"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.84"
+description = "ProofDrop: provably fair puzzle contests with an escrowed purse, on Solana"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+no-entrypoint = []
+
+[dependencies]
+solana-program = "=2.2.1"
+
+[dev-dependencies]
+
+[profile.release]
+overflow-checks = true
