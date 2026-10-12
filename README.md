@@ -20,6 +20,10 @@ Skill contests with prizes (cipher hunts, puzzle races, trivia, ARGs) run on tru
 
 Scrypt runs monthly cipher Sprints with cash purses. Today we enforce these rules with salted hashes in our own database, but a database is something the house controls. ProofDrop moves the promise onto a public ledger the house *can't* control.
 
+## Production use: Scrypt's November Sprint
+
+Scrypt's November cash Sprint will seal its answer key on Solana mainnet before the pack is released, and publish the proof after it closes. It's the first step toward running the whole race on ProofDrop. The key is sealed as one salted hash per answer field, using the v1 commit path. The salts are published with the answer key after close, so anyone can check the key never changed after the race opened.
+
 ## v2: the escrow program (`program/`)
 
 | # | Instruction | Who | Rule enforced on chain |
