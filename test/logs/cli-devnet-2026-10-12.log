@@ -26,3 +26,11 @@ already paid out: winner 442JT35uctfkBeYDXH79osZJTtSReuMdYr8aFPa6KoM3
 CLI-MIX {'revealed': True, 'entryCount': 2, 'settled': 2, 'leader': '442JT35uctfkBeYDXH79osZJTtSReuMdYr8aFPa6KoM3', 'paid': 1}
 CLI-WRONG {'revealed': True, 'entryCount': 1, 'settled': 1, 'leader': None, 'paid': 2}
 CLI-EMPTY {'revealed': True, 'entryCount': 0, 'settled': 0, 'leader': None, 'paid': 2}
+
+== CORRECTION (Keeper, 2026-10-12 21:30Z)
+The lines "carol entered" above are false. Carol's submissions were rejected, but v2-submit
+exited 0 on rejection at the time, so the script printed success. On-chain counts are the
+truth: CLI-MIX had 2 entries, CLI-WRONG had 1 (see the final state lines). v2-submit now
+exits 1 on rejection. The three-entry mixed case was re-run cleanly in
+cli-devnet-2026-10-12-mix3.log: alice wrong, bob correct, carol correct later;
+settled 3 of 3; paid bob, the earliest correct entry.

@@ -1,0 +1,33 @@
+A. contest with a winner
+  ✓ purse of 0.5 SOL held by the contest account
+  ✓ second entry from the same wallet → rejected: This wallet has already entered this contest
+  ✓ house wallet enters its own contest → rejected: The house wallet cannot enter its own contest
+  ✓ reveal before entries close → rejected: Too early: entries are still open
+  ✓ entry after close → rejected: Entries are closed
+  ✓ non-house wallet reveals on the real contest → rejected: Only the house can do that
+  ✓ house tries to change the answer → rejected: Reveal does not match the commitment
+  ✓ honest reveal accepted
+  ✓ payout before every entry is settled → rejected: Not every entry is settled yet
+  ✓ carol (correct, later) settles first and leads
+  ✓ carol settles twice → rejected: That entry is already settled
+  ✓ eve's copied hash and alice's wrong guess settle as wrong
+  ✓ carol tries to cash out while an earlier entry is unsettled → rejected: Not every entry is settled yet
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+  ✓ bob (correct, earliest) takes the lead when settled by a third party
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+  ✓ payout to a later correct wallet → rejected: Recipient is not the winner
+  ✓ payout to the house while a correct entry exists → rejected: Recipient is not the winner
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+  ✓ bob receives exactly the 0.5 SOL purse
+  ✓ double payout → rejected: Already paid
+  ✓ settling after payout → rejected: That entry is already settled
+B. contest where everyone is wrong
+  ✓ refund to the house before every entry is proven wrong → rejected: Not every entry is settled yet
+  ✓ refund to the house only after every entry is proven wrong
+
+21 passed, 0 failed
+exit 0

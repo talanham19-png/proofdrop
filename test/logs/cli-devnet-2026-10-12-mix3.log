@@ -1,0 +1,78 @@
+== CLI mixed three-entry re-run 2026-10-12T21:23:52Z, devnet
+{
+  "program": "v2",
+  "contestId": "CLI-MIX3",
+  "contest": "Gcf53gux8EyojbBPiWL9bF7SAdSQLhPhkagozYbLaWYb",
+  "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
+  "createSig": "5dP1ZYVR2AJ36tTtjsVNQdVZCJiX6e7f3adCrakGkTCCtmZJrZx9oUxReh3vHekYJNquewLhB2kvy8ZxKPQDhHJF",
+  "commitHash": "305bd45c06ad39add8184b7c9d345da9953d3439ddcb953daff0c789412431ff",
+  "closeSlot": 510398232,
+  "claimSlots": 0,
+}
+-- entries: alice wrong, bob correct, carol correct (later)
+2whqKqMfg2EEUfpHn7Vb1zxfxTYNR6tk9H9AdgJfiWzef9T8qgjdPbzVMfgzvKpFZ5Uy5My5HmLcqk56uvsGZyHQ
+alice entered
+3Z7grgrm2fw78azJEsoFxdJfHoxQJyY9VFxJhjuQiRXgZpKyKeRHQRm9yYeq9Fgu7epq6pko2nhJGx14ppUARCzb
+bob entered
+33CThnvonGZEorTdZ6XkePiRGTAfZE7N89sL4x5Zq73RoJdSMpMKeQnketrW7HUQGVTZSeLEas4qySCS8XC1gys
+carol entered
+-- waiting for close
+== v2-reveal (expect: settle 3 of 3, pay bob, the earliest correct)
+revealed 3UDn3T5ddv24ank8sSZcE9MMHJgAaDypsmvmg39rXrxGwGebXnnwawaQGo11quqgKe4A3bhZSnG5QueeKaoZciWs
+settled batch 62h3MGomkt91m8YuoEVou99UHfdEMVthxYndfhygoXGSCVmkuPLBxWURCzwfQMVSKm3vGYP34Nxnop6UATSReUFd
+settled 3 of 3; leader 442JT35uctfkBeYDXH79osZJTtSReuMdYr8aFPa6KoM3
+paid 442JT35uctfkBeYDXH79osZJTtSReuMdYr8aFPa6KoM3 (earliest correct entry) 3Pbqr5YGWHwxzpKaXS39JoPraskJ1qLmz8F2WyfgtUBDMgqptNnJJhXv9hGa11y26uLi5BUjSk34evwAw1uDqTja
+{
+  "address": "Gcf53gux8EyojbBPiWL9bF7SAdSQLhPhkagozYbLaWYb",
+  "exists": true,
+  "lamports": 1950720,
+  "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
+  "id": "CLI-MIX3",
+  "commitHex": "305bd45c06ad39add8184b7c9d345da9953d3439ddcb953daff0c789412431ff",
+  "closeSlot": 510398232,
+  "claimSlots": 0,
+  "purse": 10000000,
+  "revealed": true,
+  "revealSlot": 510398358,
+  "answer": "HONEST",
+  "leader": "442JT35uctfkBeYDXH79osZJTtSReuMdYr8aFPa6KoM3",
+  "leaderSlot": 510398177,
+  "entries": [
+    {
+      "address": "C4sWRsuPEMHXbWKBQVv33BZ6XLNCxZFzcrpWpnjnAUeg",
+      "contest": "Gcf53gux8EyojbBPiWL9bF7SAdSQLhPhkagozYbLaWYb",
+      "solver": "BBXypfDoonMD3aJT8s8MYURqeWu4QmnTfRMFTYtewKE1",
+      "hashHex": "be4e9fb745f32baab7f29c1577c6e5023b7a4b242e6bd03514b31a250be0d3df",
+      "slot": 510398169,
+      "idx": 0,
+      "settled": true,
+      "settledCorrect": false,
+      "correct": false
+    },
+    {
+      "address": "JDpSEKXtxH1b3JuDuVcAa7gxcrHafPikbgBQfeP5i2zn",
+      "contest": "Gcf53gux8EyojbBPiWL9bF7SAdSQLhPhkagozYbLaWYb",
+      "solver": "442JT35uctfkBeYDXH79osZJTtSReuMdYr8aFPa6KoM3",
+      "hashHex": "5242f27688fb86c86f72ee32df03b38a5197f531e879ce99f52f47e1bdf0e77e",
+      "slot": 510398177,
+      "idx": 1,
+      "settled": true,
+      "settledCorrect": true,
+      "correct": true
+    },
+    {
+      "address": "6WDnisy6Cph984nAfK1V8Q8v8ybdZLYDUduD67vEqLcw",
+      "contest": "Gcf53gux8EyojbBPiWL9bF7SAdSQLhPhkagozYbLaWYb",
+      "solver": "3c3NT3HrLpSWQxJWiUbMwefxM5d8VjLVUTM4kQ4tKRsU",
+      "hashHex": "768f8d6255bd809bbcf746abad8e43ef4b9040acda101db104595516973bcb2d",
+      "slot": 510398184,
+      "idx": 2,
+      "settled": true,
+      "settledCorrect": true,
+      "correct": true
+    }
+  ],
+  "paid": 1,
+  "settled": 3,
+  "entryCount": 3
+}
