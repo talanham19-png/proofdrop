@@ -27,6 +27,18 @@
     "commitHash": "3d7b1a520b42b1c25f03c05ce16b814db99694a91a4d0992615100c779f462dc"
   },
   {
+    "contestId": "SANDBOX-01",
+    "title": "Sandbox",
+    "subtitle": "No purse. Try sealing an entry without competing for anything; the answer is the word SANDBOX. Used for walkthrough videos.",
+    "status": "open",
+    "program": "v2",
+    "clue": "Seal the word <b>SANDBOX</b> (or anything else) to watch an entry land on chain.",
+    "contest": "C1Kt24nyDtSNbzkxst2qoBuxhHCRqYVh9QTvukEFyX2E",
+    "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
+    "commitSig": "5MFnmisQ9MrshYSYYncfYLv8dwqwk6S8Wmvmxv7QZvL7avRXjh7aam2NPkzQrPkEZuChHsLn2P5REtDTXmJGFzUm",
+    "commitHash": "0d83d7ecbf84c167411051a9d6d8c4d3722020de978ddf1efaf76ceaf3022994"
+  },
+  {
     "contestId": "ESC-001",
     "title": "The Founder's Line",
     "subtitle": "A finished escrowed contest: entries, reveal, claim and payout, all enforced on chain",
