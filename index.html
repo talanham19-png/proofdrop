@@ -191,13 +191,14 @@ import { normalizeAnswer, submitHash, memoSubmit, adjudicate } from './lib/proto
 import { buildProtocolTx, fetchRecords } from './lib/chain.mjs';
 import { PROGRAM_ID, ixSubmit, ixSettle, ixPayout, settleAllTxs, loadContest, explainError } from './lib/escrow.mjs';
 
-// RPC: ?rpc= override, else the keyed endpoint in rpc.json (deployed only, domain-locked, not in the repo),
+// RPC: ?rpc= override, else a keyed endpoint from rpc.json or /api/config (HELIUS_RPC env; never in the repo),
 // else the public devnet RPC. A keyed endpoint that fails its first call falls back to the public one.
 const PUBLIC_RPC = 'https://api.devnet.solana.com';
 async function pickRpc() {
   const q = new URLSearchParams(location.search).get('rpc'); if (q) return q;
   try {
-    const cfg = await (await fetch('./rpc.json', { cache: 'no-store' })).json();
+    let cfg = null;
+    for (const u of ['./rpc.json', '/api/config']) { try { const r = await fetch(u, { cache: 'no-store' }); if (r.ok) { cfg = await r.json(); if (cfg?.devnet) break; } } catch {} }
     if (cfg?.devnet) {
       const r = await fetch(cfg.devnet, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"jsonrpc":"2.0","id":1,"method":"getGenesisHash"}' });
       if (r.ok && (await r.json()).result === 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG') return cfg.devnet;
