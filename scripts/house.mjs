@@ -7,17 +7,17 @@
 //   node scripts/house.mjs reveal <houseKey> <contestId> <inbox> <salt> <answer>
 //   node scripts/house.mjs verify <contestId> <inbox> <housePubkey>
 // v2 (escrow program):
-//   v2-create <houseKey> <id> <answer> <purseSOL> <openSlots> <claimSlots>   -> prints SALT (keep secret)
+//   v2-create <houseKey> <id> <answer> <purseSOL> <openSlots> <reservedZero>   -> prints SALT (keep secret)
 //   v2-submit <solverKey> <housePubkey> <id> <guess>
-//   v2-reveal <houseKey> <id> <salt> <answer>
-//   v2-settle <payerKey> <housePubkey> <id>      claim correct entries, then pay out after the window
+//   v2-reveal <houseKey> <id> <salt> <answer>    reveal, then settle EVERY entry and pay out
+//   v2-settle <payerKey> <housePubkey> <id>      settle every unsettled entry, then pay out (resumable)
 //   v2-show <housePubkey> <id>
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import * as web3 from '@solana/web3.js';
 import { commitHash, submitHash, memoCommit, memoSubmit, memoReveal, adjudicate } from '../lib/protocol.mjs';
 import { buildProtocolTx, fetchRecords } from '../lib/chain.mjs';
-import { ixCreate, ixSubmit, ixReveal, ixClaim, ixPayout, loadContest, pdas, explainError } from '../lib/escrow.mjs';
+import { ixCreate, ixSubmit, ixReveal, ixPayout, settleAllTxs, loadContest, pdas, explainError } from '../lib/escrow.mjs';
 
 const RPC = process.env.RPC_URL || web3.clusterApiUrl('devnet');
 const conn = new web3.Connection(RPC, 'confirmed');
@@ -26,6 +26,25 @@ const send = async (kp, inbox, memo) => {
   const tx = buildProtocolTx(web3, { payer: kp.publicKey, inbox, memo });
   return web3.sendAndConfirmTransaction(conn, tx, [kp], { commitment: 'confirmed' });
 };
+
+// Settle every unsettled entry (wrong ones included), re-read the chain, and pay out only when
+// the program's own counts say every entry is settled. Safe to re-run: it resumes where it left off.
+async function settleAndPay(payer, house, id) {
+  let st = await loadContest(web3, conn, house, id);
+  if (!st.exists) { console.log('no such contest'); process.exit(1); }
+  if (!st.revealed) { console.log('not revealed yet'); process.exit(1); }
+  if (st.paid) { console.log('already paid out:', st.paid === 1 ? 'winner ' + st.leader : 'refunded to house'); return; }
+  for (const tx of settleAllTxs(web3, st)) {
+    try { console.log('settled batch', await web3.sendAndConfirmTransaction(conn, tx, [payer], { commitment: 'confirmed' })); }
+    catch (e) { console.log('settle batch failed:', explainError(e), '- re-run to resume'); process.exit(1); }
+  }
+  st = await loadContest(web3, conn, house, id);
+  console.log(`settled ${st.settled} of ${st.entryCount}; leader ${st.leader || 'none'}`);
+  if (st.settled !== st.entryCount) { console.log('not every entry is settled; re-run to resume'); process.exit(1); }
+  const recipient = st.leader || st.house;
+  try { console.log('paid', recipient, st.leader ? '(earliest correct entry)' : '(no correct entry; refund to house)', await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixPayout(web3, { contest: st.address, recipient })), [payer], { commitment: 'confirmed' })); }
+  catch (e) { console.log('payout rejected:', explainError(e)); process.exit(1); }
+}
 
 const [cmd, ...a] = process.argv.slice(2);
 if (cmd === 'keygen') {
@@ -66,7 +85,7 @@ if (cmd === 'keygen') {
     notes: r.notes,
   }, null, 2));
 } else if (cmd === 'v2-create') {
-  // v2-create <houseKey> <id> <answer> <purseSOL> <openSlots> <claimSlots>   -> prints contest + SALT (keep secret)
+  // v2-create <houseKey> <id> <answer> <purseSOL> <openSlots> <reservedZero>   -> prints contest + SALT (keep secret)
   const [keyf, id, answer, purseSol, openSlots, claimSlots] = a;
   const kp = load(keyf);
   const salt = crypto.randomBytes(16).toString('hex');
@@ -77,34 +96,17 @@ if (cmd === 'keygen') {
 } else if (cmd === 'v2-submit') {
   const [keyf, house, id, guess] = a; const kp = load(keyf);
   try { console.log(await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(await ixSubmit(web3, { house, id, solver: kp.publicKey, guess })), [kp], { commitment: 'confirmed' })); }
-  catch (e) { console.log('rejected:', explainError(e)); }
+  catch (e) { console.log('rejected:', explainError(e)); process.exit(1); }
 } else if (cmd === 'v2-reveal') {
+  // v2-reveal <houseKey> <id> <salt> <answer> : reveal, then settle EVERY entry and pay out in the same run
   const [keyf, id, salt, answer] = a; const kp = load(keyf);
   try { console.log('revealed', await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixReveal(web3, { house: kp.publicKey, id, salt, answer })), [kp], { commitment: 'confirmed' })); }
-  catch (e) { console.log('rejected:', explainError(e)); process.exit(1); }
-  // Auto-claim straight after the reveal, so a correct entry can't lapse and send the purse back to the house.
-  const st = await loadContest(web3, conn, kp.publicKey, id);
-  const first = st.entries.find(e => e.correct);
-  if (!first) console.log('no correct entry; after the claim window the purse returns to the house');
-  else {
-    try { console.log('claimed for earliest correct entry', first.solver, await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixClaim(web3, { contest: st.address, entry: first.address })), [kp], { commitment: 'confirmed' })); }
-    catch (e) { console.log('auto-claim failed:', explainError(e), '- run v2-settle'); }
-    console.log('payout opens after slot', st.revealSlot + st.claimSlots, '- then run v2-settle (or anyone presses Trigger payout)');
-  }
+  catch (e) { console.log('reveal rejected:', explainError(e)); process.exit(1); }
+  await settleAndPay(kp, kp.publicKey.toBase58(), id);
 } else if (cmd === 'v2-settle') {
-  // v2-settle <payerKey> <house> <id> : claims every correct entry (earliest wins), then pays out once the window closes
-  const [keyf, house, id] = a; const kp = load(keyf);
-  const st = await loadContest(web3, conn, house, id);
-  for (const e of st.entries.filter(e => e.correct)) {
-    try { await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixClaim(web3, { contest: st.address, entry: e.address })), [kp], { commitment: 'confirmed' }); console.log('claimed', e.solver); }
-    catch (err) { console.log('claim', e.solver, '->', explainError(err)); }
-  }
-  const after = await loadContest(web3, conn, house, id);
-  const end = after.revealSlot + after.claimSlots;
-  while ((await conn.getSlot('confirmed')) <= end) await new Promise(r => setTimeout(r, 1000));
-  const recipient = after.leader || after.house;
-  try { console.log('paid', recipient, await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixPayout(web3, { contest: st.address, recipient })), [kp], { commitment: 'confirmed' })); }
-  catch (err) { console.log('payout ->', explainError(err)); }
+  // v2-settle <payerKey> <housePubkey> <id> : settle every unsettled entry (right or wrong), then pay out
+  const [keyf, house, id] = a;
+  await settleAndPay(load(keyf), house, id);
 } else if (cmd === 'v2-show') {
   const [house, id] = a;
   console.log(JSON.stringify(await loadContest(web3, conn, house, id), null, 2));

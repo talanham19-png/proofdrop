@@ -1,0 +1,14 @@
+local build    112096 bytes sha256 a84e11858ef29f6a86714a43e42d3647e9c97bb41886da5b2a88f66e6b0d4bf8
+devnet program 122504 bytes (account incl. extension padding)
+first 112096 bytes of deployed sha256 a84e11858ef29f6a86714a43e42d3647e9c97bb41886da5b2a88f66e6b0d4bf8
+remaining bytes all zero: True
+MATCH
+
+Program Id: 5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q
+Owner: BPFLoaderUpgradeab1e11111111111111111111111
+ProgramData Address: 6Sry2Au9yrTCfKFWEKU1B1aWABs8ssuuUiGyENDsMi6B
+Authority: BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4
+Last Deployed In Slot: 510381736
+Data Length: 122504 (0x1de88) bytes
+Balance: 0.62319916 SOL
+

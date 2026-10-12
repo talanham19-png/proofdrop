@@ -96,6 +96,7 @@ th{color:var(--dim);font-weight:400;font-size:11px;letter-spacing:.12em;text-tra
 .secret.show{display:block}
 .warn{color:var(--orange);font-size:12px}
 footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:16px;display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap}
+@media (max-width:480px){.prod{display:none}.word{font-size:20px;letter-spacing:.14em}.tagline{letter-spacing:.2em}.logo{width:36px;height:36px}.mark{gap:10px;min-width:0}header{gap:10px}}
 @media (max-width:820px){.hero{grid-template-columns:1fr}.hero-art{aspect-ratio:1/1;max-height:340px}.steps,.start{grid-template-columns:1fr}.kv{grid-template-columns:1fr}.kv div:nth-child(odd){margin-top:6px}}
 </style>
 </head>
@@ -126,7 +127,7 @@ footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid va
 <div class="steps">
   <div class="step"><b>1 · Commit</b><p>The house stores <span class="mono">sha256(id|salt|answer)</span> in the contest account and locks the purse there. From that slot on, the answer can't change.</p></div>
   <div class="step"><b>2 · Submit</b><p>You post <span class="mono">sha256(id|wallet|guess)</span>. It's bound to your wallet, so a copied entry never counts for anyone else.</p></div>
-  <div class="step"><b>3 · Reveal &amp; payout</b><p>The program rejects any reveal that doesn't match the seal. Every entry is then settled on chain (our reveal script does it at once; anyone can), and the program pays only when all are settled: to the earliest correct entry, or back to the house only if every entry was wrong.</p></div>
+  <div class="step"><b>3 · Reveal &amp; payout</b><p>The program rejects any reveal that doesn't match the seal. Every entry is then settled on chain (our reveal script does it at once; anyone can), and the program pays only when all are settled: to the earliest correct entry, or back to the house only when no correct entry exists.</p></div>
 </div>
 
 <h2>Proof on chain <small>click any of these</small></h2>
@@ -138,8 +139,9 @@ footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid va
     <div>Copied entry</div><div id="pf-copy">ESC-003: a wallet re-posts the winner's sealed hash; it settles as wrong, and a payout to it is rejected.</div>
     <div>Upgrade authority</div><div id="pf-auth">Checking the program on chain…</div>
   </div>
+  <p class="dimtxt" style="font-size:12px;margin:8px 0 0">Explorer shows program errors as hex codes. The program's codes: 0x7 reveal does not match the commitment · 0xd recipient is not the winner · 0x10 the house wallet cannot enter · 0xf not every entry is settled · 0x11 entry already settled.</p>
   <details class="hint"><summary>What you still trust (read this)</summary>
-    <p>Devnet only: every purse here is play money with no cash value. The house wallet can't enter its own contest, but the program can't stop the house using a second wallet, so this version still trusts it not to. Every entry must be settled before any payout, so no correct entry can be skipped, and the purse returns to the house only if every entry is proven wrong. Guesses are bound to their wallet, so they can't be copied; but someone holding a candidate answer can test it against other entries' hashes, so treat a sealed guess as uncopyable, not unreadable. If the house never reveals, the purse stays locked forever, so withholding a reveal can't save it money.</p>
+    <p>Devnet only: every purse here is play money with no cash value. The house wallet can't enter its own contest, but the program can't stop the house using a second wallet, so this version still trusts it not to. Every entry must be settled before any payout, so no correct entry can be skipped, and the purse returns to the house only when every entry is settled and none is correct (including a contest nobody entered). Guesses are bound to their wallet, so they can't be copied; but someone holding a candidate answer can test it against other entries' hashes, so treat a sealed guess as uncopyable, not unreadable. If the house never reveals, the purse stays locked forever, so withholding a reveal can't save it money.</p>
   </details>
 </div>
 
@@ -196,6 +198,7 @@ const short = s => s ? s.slice(0,4)+'…'+s.slice(-4) : '';
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const LS = 'proofdrop.wallet.v1';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- wallet: in-browser keypair or Phantom ----------
 let burner = null, phantomKey = null;
@@ -309,7 +312,7 @@ async function sendTx(tx) {
 }
 
 // ---------- contests ----------
-async function renderVerdict(el, id, inbox, house) {
+async function renderVerdict(el, id, inbox, house, attempt = 0) {
   el.innerHTML = '<div class="status">Reading the inbox from Solana…</div>';
   try {
     const recs = await fetchRecords(web3, conn, inbox);
@@ -328,10 +331,13 @@ async function renderVerdict(el, id, inbox, house) {
     else if (!r.valid) verdict = '<b style="color:var(--orange)">The reveal does not match the commitment.</b> The house changed its answer; no winner can stand.';
     else verdict = `Reveal matches the commitment ✓ · answer <b>${esc(r.reveal.answer)}</b> · ${r.winner ? `winner <a class="mono" href="${ex('address',r.winner.signer)}">${short(r.winner.signer)}</a> at slot ${r.winner.slot}` : 'no correct submission'}.`;
     el.innerHTML = `<table><thead><tr><th>Step</th><th>Signer</th><th>Slot</th><th>State</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table><div class="verdict">${verdict}</div>`;
-  } catch (e) { el.innerHTML = `<div class="status bad">Could not read the chain: ${esc(e.message)}. Try again, or add ?rpc=&lt;your devnet RPC&gt; to the URL.</div>`; }
+  } catch (e) {
+    if (attempt < 4) { el.innerHTML = '<div class="status">The public devnet RPC is busy; retrying…</div>'; await sleep(1500 * 2 ** attempt); return renderVerdict(el, id, inbox, house, attempt + 1); }
+    el.innerHTML = `<div class="status bad">Could not read the chain right now (${esc(e.message)}). Press Verify again in a moment.</div>`;
+  }
 }
 
-async function renderEscrow(card, c) {
+async function renderEscrow(card, c, attempt = 0) {
   const out = card.querySelector('.vout');
   out.innerHTML = '<div class="status">Reading the contest from the program…</div>';
   try {
@@ -348,7 +354,7 @@ async function renderEscrow(card, c) {
       settling: `Revealed and verified by the program. ${pendingSettle} of ${st.entryCount} entries still to settle; the program pays only once every entry is settled. Anyone can settle.`,
       payable: 'Every entry is settled. Anyone can trigger the payout; the program decides who receives it.',
       paid: st.settled === st.entryCount ? `Paid: once every entry was settled, the program sent ${sol} devnet SOL from escrow to the earliest correct wallet.` : `Paid under the program's first version (claim-window rules, before settle-all): ${sol} devnet SOL from escrow to the earliest claimed correct wallet.`,
-      refunded: 'Every entry was settled and proven wrong, so the program returned the purse to the house.',
+      refunded: 'Every entry was settled and none was correct, so the program returned the purse to the house.',
     }[phase];
     const me = address();
     const rows = st.entries.map(e => {
@@ -377,7 +383,10 @@ async function renderEscrow(card, c) {
     out.querySelectorAll('.settle').forEach(b => b.onclick = () => run('Settling', [() => new web3.Transaction().add(ixSettle(web3, { contest: st.address, entry: b.dataset.entry }))]));
     const sa = out.querySelector('.settleall'); if (sa) sa.onclick = () => run('Settling', settleAllTxs(web3, st).map(tx => () => tx));
     const pb = out.querySelector('.payout'); if (pb) pb.onclick = () => run('Paying out', [() => new web3.Transaction().add(ixPayout(web3, { contest: st.address, recipient: st.leader || st.house }))]);
-  } catch (e) { out.innerHTML = `<div class="status bad">Could not read the program: ${esc(e.message || e)}. Try again, or add ?rpc=&lt;your devnet RPC&gt; to the URL.</div>`; }
+  } catch (e) {
+    if (attempt < 4) { out.innerHTML = '<div class="status">The public devnet RPC is busy; retrying…</div>'; await sleep(1500 * 2 ** attempt); return renderEscrow(card, c, attempt + 1); }
+    out.innerHTML = `<div class="status bad">Could not read the program right now (${esc(e.message || e)}). Press Refresh in a moment.</div>`;
+  }
 }
 
 async function submit(c, inputEl, statusEl, card) {
@@ -407,18 +416,19 @@ const contests = await (await fetch('./contests.json', { cache:'no-store' })).js
     const pdi = pd ? await conn.getParsedAccountInfo(new web3.PublicKey(pd), 'confirmed') : null;
     const auth = pdi?.value?.data?.parsed?.info?.authority;
     $('#pf-auth').innerHTML = auth
-      ? `Held by Scrypt's house key <a class="mono" href="${ex('address', auth)}">${short(auth)}</a>, read live from chain. Until it is frozen, the house could upgrade the program; we freeze it before submission.`
+      ? `Held by Scrypt's house key <a class="mono" href="${ex('address', auth)}">${short(auth)}</a>, read live from chain. Until it is frozen, the house could upgrade the program. We plan to freeze it before submission; this line will then read Frozen.`
       : `<b style="color:var(--green)">Frozen.</b> No one, including Scrypt, can change this program again (read live from chain).`;
   } catch { $('#pf-auth').textContent = 'Could not read the program account right now.'; }
   const pf = contests.find(c => c.proof)?.proof;
   if (pf) {
-    $('#pf-house').innerHTML = `ESC-003: the house tries to reveal a different answer, and the program rejects it (“${esc(pf.houseChangesAnswer.error)}”). <a href="${ex('tx', pf.houseChangesAnswer.sig)}">failed transaction</a>`;
-    $('#pf-enter').innerHTML = `ESC-003: the house wallet tries to enter its own contest (“${esc(pf.houseEnters.error)}”). <a href="${ex('tx', pf.houseEnters.sig)}">failed transaction</a>`;
-    $('#pf-copy').innerHTML = `ESC-003: a wallet re-posts the winner's sealed hash. It <a href="${ex('tx', pf.copierSettled)}">settles as wrong</a>, a payout to it is rejected (“${esc(pf.payoutToCopier.error)}”, <a href="${ex('tx', pf.payoutToCopier.sig)}">failed transaction</a>), and the <a href="${ex('tx', pf.payout)}">honest winner is paid</a>.`;
+    $('#pf-house').innerHTML = `ESC-003: the house tries to reveal a different answer, and the program rejects it with error 0x7, “${esc(pf.houseChangesAnswer.error)}”. <a href="${ex('tx', pf.houseChangesAnswer.sig)}">failed transaction</a>`;
+    $('#pf-enter').innerHTML = `ESC-003: the house wallet tries to enter its own contest; error 0x10, “${esc(pf.houseEnters.error)}”. <a href="${ex('tx', pf.houseEnters.sig)}">failed transaction</a>`;
+    $('#pf-copy').innerHTML = `ESC-003: a wallet re-posts the winner's sealed hash. It <a href="${ex('tx', pf.copierSettled)}">settles as wrong</a> (the program log says so), a payout to it is rejected with error 0xd, “${esc(pf.payoutToCopier.error)}” (<a href="${ex('tx', pf.payoutToCopier.sig)}">failed transaction</a>), and the <a href="${ex('tx', pf.payout)}">honest winner is paid 0.1 devnet SOL</a>.`;
   }
 })();
 const list = $('#list'); list.innerHTML = '';
 let legacyShown = false;
+const initial = []; // load contests one at a time so the free public RPC isn't hit with a burst
 for (const c of contests) {
   if (c.legacy && !legacyShown) { legacyShown = true; const h = document.createElement('div'); h.className = 'legacy-h'; h.textContent = 'Earlier contests · Memo protocol v1 (verifiable, house pays manually)'; list.appendChild(h); }
   const el = document.createElement('div'); el.className = 'card' + (c.featured ? ' featured' : '');
@@ -440,8 +450,9 @@ for (const c of contests) {
     el.querySelector('.seal').onclick = () => submit(c, inp, el.querySelector('.st'), el);
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(c, inp, el.querySelector('.st'), el); });
   }
-  if (c.status !== 'open' || c.program === 'v2') show();
+  if (c.status !== 'open' || c.program === 'v2') initial.push(show);
 }
+(async () => { for (const f of initial) { await f(); await sleep(250); } })();
 $('#v-go').onclick = () => renderVerdict($('#v-out'), $('#v-id').value.trim(), $('#v-inbox').value.trim(), $('#v-house').value.trim());
 refresh();
 </script>

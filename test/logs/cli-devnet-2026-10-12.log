@@ -1,0 +1,28 @@
+== CLI test run 2026-10-12T21:00:38Z, devnet, program 5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q
+-- CLI-MIX entries: alice wrong, bob correct, carol wrong
+alice entered
+bob entered
+carol entered
+-- CLI-WRONG entries: alice wrong, carol wrong
+alice entered
+carol entered
+-- CLI-EMPTY: no entries
+== v2-reveal CLI-MIX (expect: settle 3, pay bob 442J...KoM3)
+revealed <sig>
+settled batch <sig>
+settled 2 of 2; leader 442JT35uctfkBeYDXH79osZJTtSReuMdYr8aFPa6KoM3
+paid 442JT35uctfkBeYDXH79osZJTtSReuMdYr8aFPa6KoM3 (earliest correct entry) <sig>
+== v2-reveal CLI-WRONG (expect: settle 2, refund house)
+revealed <sig>
+settled batch <sig>
+settled 1 of 1; leader none
+paid BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4 (no correct entry; refund to house) <sig>
+== v2-reveal CLI-EMPTY (expect: settle 0, refund house)
+revealed <sig>
+settled 0 of 0; leader none
+paid BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4 (no correct entry; refund to house) <sig>
+== re-run v2-settle on CLI-MIX (expect: already paid)
+already paid out: winner 442JT35uctfkBeYDXH79osZJTtSReuMdYr8aFPa6KoM3
+CLI-MIX {'revealed': True, 'entryCount': 2, 'settled': 2, 'leader': '442JT35uctfkBeYDXH79osZJTtSReuMdYr8aFPa6KoM3', 'paid': 1}
+CLI-WRONG {'revealed': True, 'entryCount': 1, 'settled': 1, 'leader': None, 'paid': 2}
+CLI-EMPTY {'revealed': True, 'entryCount': 0, 'settled': 0, 'leader': None, 'paid': 2}

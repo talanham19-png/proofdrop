@@ -11,7 +11,8 @@ const [house, alice, bob, carol, eve, dave] = Array.from({ length: 6 }, () => we
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log('  ✓', m); } else { fail++; console.log('  ✗', m); } };
 const send = (ixx, signer) => web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ixx), [signer], { commitment: 'confirmed' });
-async function expectFail(p, want, m) { try { await p; ok(false, m + ' (unexpectedly succeeded)'); } catch (e) { const why = explainError(e); ok(!want || why.includes(want), `${m} → rejected: ${why}`); } }
+// Each rejection must match its exact expected error message (mapped from the program's error code).
+async function expectFail(p, want, m) { try { await p; ok(false, m + ' (unexpectedly succeeded)'); } catch (e) { const why = explainError(e); ok(why === want, `${m} → rejected: ${why}${why === want ? '' : ` (expected: ${want})`}`); } }
 const waitSlot = async s => { while ((await conn.getSlot('confirmed')) <= s) await new Promise(r => setTimeout(r, 400)); };
 
 if (process.env.FUNDER) {
@@ -42,41 +43,41 @@ await send(await ixSubmit(web3, { house: H, id: A.id, solver: alice.publicKey, g
 await send(await ixSubmit(web3, { house: H, id: A.id, solver: bob.publicKey, guess: 'Grand Expo' }), bob);
 await send(await ixSubmit(web3, { house: H, id: A.id, solver: carol.publicKey, guess: 'grandexpo' }), carol);
 await send(ixSubmitRawHash(web3, { house: H, id: A.id, solver: eve.publicKey, hashHex: await submitHash(A.id, bob.publicKey.toBase58(), 'GRANDEXPO') }), eve);
-await expectFail(send(await ixSubmit(web3, { house: H, id: A.id, solver: alice.publicKey, guess: 'again' }), alice), 'already entered', 'second entry from the same wallet');
-await expectFail(send(await ixSubmit(web3, { house: H, id: A.id, solver: H, guess: 'GRANDEXPO' }), house), 'house wallet cannot enter', 'house wallet enters its own contest');
-await expectFail(send(ixReveal(web3, { house: H, id: A.id, salt: A.salt, answer: A.ANSWER }), house), 'Too early', 'reveal before entries close');
+await expectFail(send(await ixSubmit(web3, { house: H, id: A.id, solver: alice.publicKey, guess: 'again' }), alice), 'This wallet has already entered this contest', 'second entry from the same wallet');
+await expectFail(send(await ixSubmit(web3, { house: H, id: A.id, solver: H, guess: 'GRANDEXPO' }), house), 'The house wallet cannot enter its own contest', 'house wallet enters its own contest');
+await expectFail(send(ixReveal(web3, { house: H, id: A.id, salt: A.salt, answer: A.ANSWER }), house), 'Too early: entries are still open', 'reveal before entries close');
 await waitSlot(A.closeSlot);
-await expectFail(send(await ixSubmit(web3, { house: H, id: A.id, solver: dave.publicKey, guess: 'late' }), dave), 'closed', 'entry after close');
+await expectFail(send(await ixSubmit(web3, { house: H, id: A.id, solver: dave.publicKey, guess: 'late' }), dave), 'Entries are closed', 'entry after close');
 { // a non-house wallet signs a reveal against the REAL contest account
   const real = ixReveal(web3, { house: H, id: A.id, salt: A.salt, answer: A.ANSWER });
   const forged = new web3.TransactionInstruction({ programId: real.programId, data: real.data,
     keys: [{ pubkey: alice.publicKey, isSigner: true, isWritable: false }, { pubkey: A.contest, isSigner: false, isWritable: true }] });
-  await expectFail(send(forged, alice), 'Only the house', 'non-house wallet reveals on the real contest');
+  await expectFail(send(forged, alice), 'Only the house can do that', 'non-house wallet reveals on the real contest');
 }
-await expectFail(send(ixReveal(web3, { house: H, id: A.id, salt: A.salt, answer: 'SOMETHINGELSE' }), house), 'does not match', 'house tries to change the answer');
+await expectFail(send(ixReveal(web3, { house: H, id: A.id, salt: A.salt, answer: 'SOMETHINGELSE' }), house), 'Reveal does not match the commitment', 'house tries to change the answer');
 await send(ixReveal(web3, { house: H, id: A.id, salt: A.salt, answer: A.ANSWER }), house);
 ok((await loadContest(web3, conn, H, A.id)).revealed, 'honest reveal accepted');
 
-await expectFail(send(ixPayout(web3, { contest: A.contest, recipient: carol.publicKey }), carol), 'Not every entry', 'payout before every entry is settled');
+await expectFail(send(ixPayout(web3, { contest: A.contest, recipient: carol.publicKey }), carol), 'Not every entry is settled yet', 'payout before every entry is settled');
 await send(ixSettle(web3, { contest: A.contest, entry: E(carol) }), carol);
 st = await loadContest(web3, conn, H, A.id);
 ok(st.leader === carol.publicKey.toBase58(), 'carol (correct, later) settles first and leads');
-await expectFail(send(ixSettle(web3, { contest: A.contest, entry: E(carol) }), carol), 'already settled', 'carol settles twice');
+await expectFail(send(ixSettle(web3, { contest: A.contest, entry: E(carol) }), carol), 'That entry is already settled', 'carol settles twice');
 await send(ixSettle(web3, { contest: A.contest, entry: E(eve) }), eve);
 await send(ixSettle(web3, { contest: A.contest, entry: E(alice) }), alice);
 st = await loadContest(web3, conn, H, A.id);
 ok(st.leader === carol.publicKey.toBase58() && st.settled === 3, "eve's copied hash and alice's wrong guess settle as wrong");
-await expectFail(send(ixPayout(web3, { contest: A.contest, recipient: carol.publicKey }), carol), 'Not every entry', 'carol tries to cash out while an earlier entry is unsettled');
+await expectFail(send(ixPayout(web3, { contest: A.contest, recipient: carol.publicKey }), carol), 'Not every entry is settled yet', 'carol tries to cash out while an earlier entry is unsettled');
 await send(ixSettle(web3, { contest: A.contest, entry: E(bob) }), alice); // anyone may settle anyone
 st = await loadContest(web3, conn, H, A.id);
 ok(st.leader === bob.publicKey.toBase58(), 'bob (correct, earliest) takes the lead when settled by a third party');
-await expectFail(send(ixPayout(web3, { contest: A.contest, recipient: carol.publicKey }), carol), 'not the winner', 'payout to a later correct wallet');
-await expectFail(send(ixPayout(web3, { contest: A.contest, recipient: H }), house), 'not the winner', 'payout to the house while a correct entry exists');
+await expectFail(send(ixPayout(web3, { contest: A.contest, recipient: carol.publicKey }), carol), 'Recipient is not the winner', 'payout to a later correct wallet');
+await expectFail(send(ixPayout(web3, { contest: A.contest, recipient: H }), house), 'Recipient is not the winner', 'payout to the house while a correct entry exists');
 const before = await conn.getBalance(bob.publicKey, 'confirmed');
 await send(ixPayout(web3, { contest: A.contest, recipient: bob.publicKey }), dave); // anyone can trigger
 ok((await conn.getBalance(bob.publicKey, 'confirmed')) - before === 500_000_000, 'bob receives exactly the 0.5 SOL purse');
 await expectFail(send(ixPayout(web3, { contest: A.contest, recipient: bob.publicKey }), house), 'Already paid', 'double payout');
-await expectFail(send(ixSettle(web3, { contest: A.contest, entry: E(alice) }), alice), 'already settled', 'settling after payout');
+await expectFail(send(ixSettle(web3, { contest: A.contest, entry: E(alice) }), alice), 'That entry is already settled', 'settling after payout');
 
 console.log('B. contest where everyone is wrong');
 const B = await mk('PERISPHERE', 50_000_000);
@@ -84,7 +85,7 @@ const EB = k => pdas(web3, H, B.id, k.publicKey).entry;
 await send(await ixSubmit(web3, { house: H, id: B.id, solver: alice.publicKey, guess: 'trylon' }), alice);
 await waitSlot(B.closeSlot);
 await send(ixReveal(web3, { house: H, id: B.id, salt: B.salt, answer: B.ANSWER }), house);
-await expectFail(send(ixPayout(web3, { contest: B.contest, recipient: H }), house), 'Not every entry', 'refund to the house before every entry is proven wrong');
+await expectFail(send(ixPayout(web3, { contest: B.contest, recipient: H }), house), 'Not every entry is settled yet', 'refund to the house before every entry is proven wrong');
 await send(ixSettle(web3, { contest: B.contest, entry: EB(alice) }), alice);
 const hb = await conn.getBalance(H, 'confirmed');
 await send(ixPayout(web3, { contest: B.contest, recipient: H }), alice);

@@ -40,7 +40,7 @@
   },
   {
     "contestId": "ESC-001",
-    "title": "The Founder's Line",
+    "title": "The Founder's Line · escrowed",
     "subtitle": "A finished escrowed contest: entries, reveal, claim and payout, all enforced on chain",
     "status": "closed",
     "program": "v2",
@@ -99,7 +99,7 @@
   },
   {
     "contestId": "PD-001",
-    "title": "The Founder's Line",
+    "title": "The Founder's Line · memo v1",
     "status": "closed",
     "clue": "Shift every letter back three: <b>GRQ'W WUXVW, YHULIB</b>",
     "inbox": "3YmiYAVEnbG5Na3vi1yYNaiKeDYWvuoNE7upvvJVmSUp",

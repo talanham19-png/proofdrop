@@ -22,29 +22,29 @@ Scrypt runs monthly cipher Sprints with cash purses. Today we enforce these rule
 
 ## Production use: Scrypt's November Sprint
 
-Scrypt's November cash Sprint will seal its answer key on Solana mainnet before the pack is released, and publish the proof after it closes. It's the first step toward running the whole race on ProofDrop. The key is sealed as one salted hash per answer field, using the v1 commit path. The salts are published with the answer key after close, so anyone can check the key never changed after the race opened.
+For November's cash Sprint, Scrypt will commit eight salted answer-field hashes to Solana mainnet before releasing the puzzle pack. After close it will publish the answers and salts, so anyone can verify the key stayed fixed. Scoring, identity checks and cash payouts stay off chain for now. This uses the v1 commit path, and it's the first step toward running more of the race on ProofDrop.
 
 ## v2: the escrow program (`program/`)
 
 | # | Instruction | Who | Rule enforced on chain |
 |---|---|---|---|
-| 0 | `CreateContest` | house | Stores `sha256(id\|salt\|ANSWER)`, the closing slot and the claim window; moves the purse into the contest PDA |
+| 0 | `CreateContest` | house | Stores `sha256(id\|salt\|ANSWER)` and the closing slot; moves the purse into the contest PDA (the `claim_slots` field is reserved and unused since v2.1) |
 | 1 | `Submit` | solver | Only while `slot ≤ close`; never from the house wallet; one entry PDA per wallet; stores `sha256(id\|wallet\|ANSWER)` and the slot |
 | 2 | `Reveal` | house | Only after close; **rejected unless it hashes to the commitment** |
 | 3 | `Settle` | anyone | Recomputes the entry's hash from the revealed answer and the entry's *own* signer; marks it right or wrong, once; keeps the earliest correct slot as leader |
-| 4 | `Payout` | anyone | Only once **every** entry is settled: sends the purse to the earliest correct entry, or back to the house only if every entry was wrong |
+| 4 | `Payout` | anyone | Only once **every** entry is settled: sends the purse to the earliest correct entry, or back to the house only when no correct entry exists (including a contest nobody entered) |
 
 If the house never reveals, the purse can't leave escrow, so withholding a reveal can't save it money. The program does all hashing with the `sol_sha256` syscall and base58-encodes the solver key on chain, so its commitments are byte-for-byte the v1 Memo commitments: the same browser code seals guesses for both.
 
-**Tested adversarially** (`test/escrow.test.mjs`, 21 checks, passing on a local validator and on devnet): a double entry, a late entry, an early reveal, a non-house reveal, the house changing its answer, the house wallet entering, settling an entry twice, a later correct entry cashing out while an earlier one is unsettled, a copied hash (Eve re-posts Bob's sealed hash, and it settles as wrong), payout to a later correct wallet, a refund to the house while a correct entry exists, and a double payout. A second contest proves the refund path: the house gets its purse back only after every entry is proven wrong. All are rejected, and the earliest correct solver receives exactly the purse.
+**Tested, not audited** (`test/escrow.test.mjs`: 21 checks, 14 of them rejections, each matched against its exact expected error message; run logs in `test/logs/`): a double entry, a late entry, an early reveal, a non-house reveal, the house changing its answer, the house wallet entering, settling an entry twice, a later correct entry cashing out while an earlier one is unsettled, a copied hash (Eve re-posts Bob's sealed hash, and it settles as wrong), payout to a later correct wallet, a refund to the house while a correct entry exists, and a double payout. A second contest proves the refund path: the house gets its purse back only after every entry is proven wrong. All are rejected, and the earliest correct solver receives exactly the purse.
 
 ```bash
 cd program && cargo-build-sbf                  # Agave 2.3 toolchain
 solana program deploy --use-rpc target/deploy/proofdrop.so
 node test/escrow.test.mjs                       # against solana-test-validator --bpf-program <id> proofdrop.so
-node scripts/house.mjs v2-create keys/house.json PD-004 "answer" 1 216000 21600   # prints SALT, keep secret
-node scripts/house.mjs v2-reveal keys/house.json PD-004 <salt> "answer"
-node scripts/house.mjs v2-settle keys/house.json <housePubkey> PD-004
+node scripts/house.mjs v2-create keys/house.json PD-005 "answer" 1 216000 0   # prints SALT, keep secret
+node scripts/house.mjs v2-reveal keys/house.json PD-005 <salt> "answer"      # reveal, settle every entry, pay out
+node scripts/house.mjs v2-settle keys/house.json <housePubkey> PD-005    # resume settle-and-pay if interrupted
 ```
 
 ### Proof on devnet (click through)
@@ -62,8 +62,12 @@ Reproduce with `node scripts/proof-demo.mjs <houseKey> <winnerKey> <copierKey> <
 - **Upgrade authority.** Until it is frozen, the holder of the program's upgrade authority (Scrypt's house key) could replace the program. We freeze it before submission; the live page reads its status from chain.
 - **The house knows the answer.** The program refuses entries from the house wallet, but it can't stop the house using a second wallet. That trust remains; mainnet narrows it with per-solver salts and identity-gated entry.
 - **Sealed is uncopyable, not unreadable.** An entry only counts for the wallet that sent it, but someone holding a candidate answer could test it against other entries' hashes.
-- **Settling costs fees.** `v2-reveal` settles every entry in the same run, and anyone else can. Payout waits until all are settled, so no correct entry can be skipped.
+- **Someone has to send the transactions.** Nothing on chain runs by itself. `v2-reveal` reveals, settles every entry (wrong ones included) and pays out in one run, and it's safe to re-run. Anyone else can settle and pay out too. Payout waits until all entries are settled, so no correct entry can be skipped.
 - **No reveal, no payout.** If the house never reveals, the purse stays locked forever, so withholding a reveal can't save it money.
+
+### Deployed binary = this source
+
+`test/logs/deployed-binary-check.txt` shows that the program on devnet is byte-for-byte this build: sha256 `a84e1185…4bf8`, followed by zero padding from the account extension. It also records the current upgrade authority.
 
 ## v1: how the Memo protocol works
 
@@ -87,26 +91,12 @@ Every contest has its own **inbox** address. Every protocol transaction touches 
 
 ## Try it (no install)
 
-1. Open the demo and press **Create wallet**. A devnet keypair is generated in your browser, and the page's faucet (`/api/fund`) drips it 0.02 devnet SOL automatically. If the faucet is dry it falls back to Solana's airdrop, then to faucet.solana.com.
-2. Solve **PD-003 · The Fair Ledger**, a puzzle written for the Crypto World's Fair, and press **Seal & submit**. Your guess is hashed in the browser with your wallet address and never leaves in plaintext.
-3. On **PD-001**, press **Verify from chain** to watch the winner recomputed live from Solana.
+1. Open the demo and press **Create wallet**. A devnet keypair is generated in your browser, and the page's faucet (`/api/fund`) sends it 0.02 devnet SOL. If the faucet is busy it falls back to Solana's airdrop, then to faucet.solana.com.
+2. In **SANDBOX-01** (no purse), seal any guess and watch your entry appear on chain as "(you) · sealed".
+3. In **ESC-003**, follow the proof links: the house's failed reveal (error 0x7), the house wallet's refused entry (0x10), the copied entry settling as wrong, the refused payout to the copier (0xd), and the 0.1 devnet SOL payout to the winner.
+4. **PD-004 · The Fair Ledger** is the live puzzle. Its answer has been sealed since creation.
 
-Already use Phantom? Press **Use Phantom** (set it to Devnet under Settings → Developer Settings). Your browser wallet's key can be backed up and imported into Phantom.
-
-## Run the house CLI
-
-```bash
-npm install
-node scripts/house.mjs keygen keys/house.json          # keep keys/ out of git (.gitignore covers it)
-# fund it on devnet (faucet.solana.com), then:
-node scripts/house.mjs commit keys/house.json PD-003 "your answer"   # prints inbox + SALT (keep secret)
-node scripts/house.mjs submit keys/solver.json PD-003 <inbox> "a guess"
-node scripts/house.mjs reveal keys/house.json PD-003 <inbox> <salt> "your answer"
-node scripts/house.mjs verify PD-003 <inbox> <housePubkey>
-node test/protocol.test.mjs                              # adjudication tests
-```
-
-Serve the folder statically (for example `npx serve .`) and add the contest to `contests.json`.
+Already use Phantom? Press **Use Phantom** (set it to Devnet under Settings → Developer Settings). A browser wallet's key can be backed up and imported into Phantom.
 
 ## The faucet
 
