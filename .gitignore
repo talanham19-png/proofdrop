@@ -2,3 +2,4 @@ node_modules/
 keys/
 *.secret
 program/target/
+rpc.json
