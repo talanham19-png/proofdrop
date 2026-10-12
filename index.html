@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProofDrop · Scrypt</title>
+<meta name="description" content="ProofDrop by Scrypt: puzzle contests where the answer is sealed on Solana before the clue drops, guesses stay hidden until the reveal, and anyone can recompute the winner.">
+<meta property="og:title" content="ProofDrop · Scrypt">
+<meta property="og:description" content="Puzzle contests nobody can rig, not even the house. Sealed on Solana.">
+<!-- SLOT og-image: Scout supplies 1200x630 share card -> <meta property="og:image" content="/assets/og.png"> -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04060f;--panel:#0a0f17;--panel2:#070b12;--line:#1a2433;--ink:#e8e0d0;--muted:#8899aa;--dim:#445566;
+  --green:#3ddc84;--green-d:#2a9d5f;--orange:#ff6b35;--red:#ff6b35;
+  --serif:"Playfair Display",Georgia,serif;--mono:"DM Mono","Courier New",monospace}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 var(--mono)}
+a{color:var(--green)}
+.wrap{max-width:1060px;margin:0 auto;padding:22px 16px 80px}
+/* brand bar */
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.mark{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink)}
+.slot{border:1px dashed var(--dim);color:var(--dim);display:grid;place-items:center;text-align:center;font:10px/1.3 var(--mono);letter-spacing:.12em;text-transform:uppercase;border-radius:8px}
+.slot.logo{width:44px;height:44px;font-size:8px}
+.word{font:700 24px/1 var(--serif);letter-spacing:.18em}
+.tagline{font-size:10.5px;letter-spacing:.32em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.prod{font:500 13px var(--mono);color:var(--green);letter-spacing:.14em;text-transform:uppercase;border-left:1px solid var(--line);padding-left:12px;margin-left:2px}
+.chip{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.btn{background:var(--green);color:#04060f;border:0;border-radius:8px;padding:10px 16px;font:500 13.5px var(--mono);letter-spacing:.04em;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+a.btn{text-decoration:none;display:inline-block}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.small{padding:6px 10px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:default}
+.pill{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:5px 11px}
+.pill b{color:var(--green);font-weight:500}
+/* hero */
+.hero{display:grid;grid-template-columns:1.25fr .75fr;gap:26px;align-items:center;margin:38px 0 26px}
+.kicker{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--orange);margin-bottom:12px}
+.hero h1{font:500 clamp(30px,4.6vw,50px)/1.08 var(--serif);margin:0 0 14px}
+.hero h1 em{color:var(--green);font-style:italic}
+.hero p{color:var(--muted);margin:0 0 20px;max-width:620px}
+.slot.hero-art{aspect-ratio:4/5;width:100%;max-height:360px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:8px 0 10px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.step b{display:block;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--green);margin-bottom:6px;font-weight:500}
+.step p{margin:0;color:var(--muted);font-size:13.5px}
+h2{font:500 26px var(--serif);margin:42px 0 12px}
+h2 small{font:12px var(--mono);color:var(--dim);letter-spacing:.14em;text-transform:uppercase;margin-left:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin:14px 0}
+.card.featured{border-color:#1f5a3c;box-shadow:0 0 0 1px #0f2e1f inset}
+.card h3{margin:0;font:700 24px var(--serif)}
+.card .sub{color:var(--muted);font-size:13px;margin:2px 0 10px}
+.tag{display:inline-block;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;border-radius:999px;padding:3px 10px;border:1px solid var(--line);color:var(--muted);margin:0 6px 6px 0}
+.tag.open{color:var(--green);border-color:#1f5a3c}.tag.closed{color:var(--orange);border-color:#6b3a22}
+.clue{font:17px/1.6 var(--serif);margin:14px 0;padding:16px 18px;border-left:3px solid var(--green);background:var(--panel2);border-radius:6px}
+.clue p{margin:0 0 10px}.clue p:last-child{margin:0}
+.clue b{font-family:var(--mono);color:var(--green);font-weight:500;letter-spacing:.06em}
+.blocks{margin:8px 0 12px;padding-left:0;list-style:none;counter-reset:b}
+.blocks li{padding:7px 0;border-bottom:1px dashed var(--line)}
+.blocks li:last-child{border-bottom:0}
+.off{font:500 13px var(--mono);color:var(--orange);margin-right:6px}
+details.hint{margin:6px 0 4px;color:var(--muted);font-size:13px}
+details.hint summary{cursor:pointer;color:var(--dim)}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:4px 12px;font-size:12.5px;margin:10px 0}
+.kv div:nth-child(odd){color:var(--dim)}
+.mono{font-family:var(--mono);font-size:12px;word-break:break-all}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+input{background:#03050b;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:10px 12px;font:14px var(--mono);min-width:0;flex:1}
+input:focus{outline:1px solid var(--green-d)}
+.status{font-size:13px;color:var(--muted);margin-top:10px;min-height:1.4em}
+.status.ok{color:var(--green)}.status.bad{color:var(--orange)}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:400;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.win{color:var(--orange);font-weight:500}
+.verdict{margin-top:12px;padding:12px 14px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);font-size:13px}
+/* wallet onboarding */
+.start{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.start .step{position:relative}
+.start .step.done{border-color:#1f5a3c}
+.start .step.done b::after{content:" ✓";color:var(--green)}
+.start .step.locked{opacity:.5}
+.walletbox{margin-top:14px;display:none}
+.walletbox.show{display:block}
+.secret{display:none;margin-top:10px;padding:10px 12px;border:1px solid #6b3a22;border-radius:8px;background:#120a06}
+.secret.show{display:block}
+.warn{color:var(--orange);font-size:12px}
+footer{margin-top:64px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:16px;display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap}
+@media (max-width:820px){.hero{grid-template-columns:1fr}.slot.hero-art{aspect-ratio:16/7}.steps,.start{grid-template-columns:1fr}.kv{grid-template-columns:1fr}.kv div:nth-child(odd){margin-top:6px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a class="mark" href="https://satoshiscrypt.com">
+    <div class="slot logo" data-slot="scrypt-mark" title="Asset slot: Scrypt mark">Mark</div>
+    <div><div class="word">SCRYPT</div><div class="tagline">Decode the City</div></div>
+    <div class="prod">ProofDrop</div>
+  </a>
+  <div class="chip">
+    <span class="pill" id="who">No wallet yet</span>
+    <button class="btn" id="hdr-start">Start playing</button>
+  </div>
+</header>
+
+<section class="hero">
+  <div>
+    <div class="kicker">Colosseum · Crypto World's Fair · Solana devnet</div>
+    <h1>Puzzle contests nobody can rig. <em>Not even the house.</em></h1>
+    <p>The answer is sealed on Solana before the clue drops. Your guess is sealed to your own wallet, so nobody can copy it off the chain. When the house reveals, anyone can recompute the winner from public data. No judge to trust.</p>
+    <div class="row"><a class="btn" href="#start">Get a wallet in ten seconds</a><a class="btn ghost" href="#contests">See today's puzzle</a></div>
+  </div>
+  <div class="slot hero-art" data-slot="hero-art" title="Asset slot: hero art">Hero art<br>slot</div>
+</section>
+
+<div class="steps">
+  <div class="step"><b>1 · Commit</b><p>The house posts <span class="mono">sha256(id|salt|answer)</span> to the contest inbox. From that slot on, the answer is fixed.</p></div>
+  <div class="step"><b>2 · Submit</b><p>You post <span class="mono">sha256(id|wallet|guess)</span>. A correct guess looks like noise until the reveal and only counts for the wallet that sent it.</p></div>
+  <div class="step"><b>3 · Reveal &amp; verify</b><p>The house posts salt and answer. The earliest matching submission wins, and this page re-checks it straight from the chain.</p></div>
+</div>
+
+<h2 id="start">Start <small>no install needed</small></h2>
+<div class="card">
+  <div class="start">
+    <div class="step" id="s1"><b>1 · Wallet</b><p>Make a free devnet wallet in this browser, or connect Phantom if you already have one.</p>
+      <div class="row"><button class="btn small" id="create">Create wallet</button><button class="btn ghost small" id="phantom">Use Phantom</button></div></div>
+    <div class="step locked" id="s2"><b>2 · Fuel</b><p>Each guess costs a fraction of a cent in devnet SOL. We drip you enough for thousands, free.</p>
+      <div class="row"><button class="btn small" id="fund" disabled>Get devnet SOL</button></div></div>
+    <div class="step locked" id="s3"><b>3 · Solve</b><p>Work the puzzle below, then press <span style="color:var(--green)">Seal &amp; submit</span>. Your guess is hashed in your browser before it leaves.</p>
+      <div class="row"><a class="btn ghost small" href="#contests">To the puzzle</a></div></div>
+  </div>
+  <div class="walletbox" id="wbox">
+    <div class="kv"><div>Address</div><div class="mono" id="w-addr"></div><div>Balance</div><div class="mono" id="w-bal">…</div><div>Kind</div><div id="w-kind"></div></div>
+    <div class="row" id="w-actions">
+      <button class="btn ghost small" id="copy">Copy address</button>
+      <button class="btn ghost small" id="export">Back up key</button>
+      <button class="btn ghost small" id="forget">Forget this wallet</button>
+    </div>
+    <div class="secret" id="secret"><div class="warn">Devnet only. Anyone with this key controls the wallet. It imports into Phantom (Add account → Import private key).</div><div class="mono" id="secret-val" style="margin-top:6px"></div></div>
+    <div class="status" id="w-status"></div>
+  </div>
+</div>
+
+<h2 id="contests">Contests</h2>
+<div id="list">Loading…</div>
+
+<h2>Verify any contest <small>read-only</small></h2>
+<div class="card">
+  <p style="margin:0;color:var(--muted)">Paste a contest id, its inbox and the house key. Everything is read straight from Solana; nothing passes through us.</p>
+  <div class="row"><input id="v-id" placeholder="contest id"><input id="v-inbox" placeholder="inbox address"><input id="v-house" placeholder="house public key"></div>
+  <div class="row"><button class="btn" id="v-go">Recompute from chain</button></div>
+  <div id="v-out"></div>
+</div>
+
+<footer>
+  <div>ProofDrop protocol v1 · SPL Memo plus a 0-lamport touch to a per-contest inbox. No custom program, so nothing to trust but Solana. Devnet only; nothing here has monetary value.</div>
+  <div>Open source (MIT) · <a href="https://satoshiscrypt.com">satoshiscrypt.com</a> · Scrypt LLC</div>
+</footer>
+</div>
+
+<script type="module">
+import * as web3 from 'https://esm.sh/@solana/web3.js@1.98.0';
+import bs58 from 'https://esm.sh/bs58@6.0.0';
+import { normalizeAnswer, submitHash, memoSubmit, adjudicate } from './lib/protocol.mjs';
+import { buildProtocolTx, fetchRecords } from './lib/chain.mjs';
+
+const RPC = new URLSearchParams(location.search).get('rpc') || 'https://api.devnet.solana.com';
+const conn = new web3.Connection(RPC, 'confirmed');
+const ex = (kind, v) => `https://explorer.solana.com/${kind}/${v}?cluster=devnet`;
+const short = s => s ? s.slice(0,4)+'…'+s.slice(-4) : '';
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LS = 'proofdrop.wallet.v1';
+
+// ---------- wallet: in-browser keypair or Phantom ----------
+let burner = null, phantomKey = null;
+const store = { get(){ try { return localStorage.getItem(LS); } catch { return null; } },
+                set(v){ try { localStorage.setItem(LS, v); } catch {} },
+                del(){ try { localStorage.removeItem(LS); } catch {} } };
+try { const s = store.get(); if (s) burner = web3.Keypair.fromSecretKey(Uint8Array.from(JSON.parse(s))); } catch { burner = null; }
+
+const phantom = () => window.phantom?.solana || (window.solana?.isPhantom ? window.solana : null);
+const address = () => burner ? burner.publicKey.toBase58() : phantomKey;
+let lastBalance = null;
+
+function status(msg, cls='') { const el = $('#w-status'); el.className = 'status ' + cls; el.innerHTML = msg; }
+
+async function refresh() {
+  const a = address();
+  $('#wbox').classList.toggle('show', !!a);
+  $('#s1').classList.toggle('done', !!a);
+  $('#s2').classList.toggle('locked', !a);
+  $('#fund').disabled = !a;
+  $('#export').style.display = burner ? '' : 'none';
+  $('#forget').style.display = burner ? '' : 'none';
+  if (!a) { $('#who').textContent = 'No wallet yet'; $('#hdr-start').style.display=''; return; }
+  $('#hdr-start').style.display='none';
+  $('#w-addr').innerHTML = `<a href="${ex('address',a)}">${a}</a>`;
+  $('#w-kind').textContent = burner ? 'Browser wallet (kept in this browser only)' : 'Phantom';
+  try {
+    lastBalance = await conn.getBalance(new web3.PublicKey(a), 'confirmed');
+    const sol = (lastBalance/1e9).toFixed(4);
+    $('#w-bal').textContent = sol + ' SOL (devnet)';
+    $('#who').innerHTML = `${short(a)} · <b>${sol}</b> SOL`;
+    const fueled = lastBalance >= 10_000;
+    $('#s2').classList.toggle('done', fueled);
+    $('#s3').classList.toggle('locked', !fueled);
+  } catch { $('#w-bal').textContent = 'could not read balance'; $('#who').textContent = short(a); }
+}
+
+$('#create').onclick = async () => {
+  if (burner) { status('This browser already holds a wallet. Back up its key or forget it before making another.', ''); return; }
+  burner = web3.Keypair.generate(); phantomKey = null;
+  store.set(JSON.stringify([...burner.secretKey]));
+  status('Wallet created. Next, fuel it.', 'ok');
+  await refresh();
+  fund();
+};
+$('#phantom').onclick = async () => {
+  const p = phantom();
+  if (!p) { status('Phantom is not installed here. <a href="https://phantom.app" target="_blank" rel="noopener">Get Phantom</a>, or just press Create wallet.', 'bad'); return; }
+  try { const r = await p.connect(); phantomKey = r.publicKey.toBase58(); burner = null;
+    status('Phantom connected. Make sure it is set to Solana Devnet (Settings → Developer Settings → Testnet mode).', 'ok'); await refresh();
+  } catch (e) { status('Phantom did not connect: ' + esc(e.message || e), 'bad'); }
+};
+$('#hdr-start').onclick = () => { location.hash = ''; $('#start').scrollIntoView(); };
+$('#copy').onclick = async () => { try { await navigator.clipboard.writeText(address()); status('Address copied.', 'ok'); } catch { status('Copy failed. Select the address above instead.', 'bad'); } };
+$('#export').onclick = () => { if (!burner) return; $('#secret-val').textContent = bs58.encode(burner.secretKey); $('#secret').classList.toggle('show'); };
+$('#forget').onclick = async () => {
+  if (!burner) return;
+  burner = null; store.del(); $('#secret').classList.remove('show');
+  status('Wallet removed from this browser. If you backed up the key you can import it into Phantom.', '');
+  await refresh();
+};
+
+async function fund() {
+  const a = address(); if (!a) return;
+  $('#fund').disabled = true; status('Sending devnet SOL to your wallet…');
+  let ok = false, note = '';
+  try {
+    const r = await fetch('/api/fund', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ address: a }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.funded) { ok = true; note = `Fuelled from the ProofDrop faucet. <a href="${ex('tx', j.signature)}">tx</a>`; }
+    else if (r.ok && j.funded === false) { ok = true; note = 'Already fuelled.'; }
+    else note = j.error || ('faucet ' + r.status);
+  } catch (e) { note = 'faucet unreachable'; }
+  if (!ok) {
+    try { const sig = await conn.requestAirdrop(new web3.PublicKey(a), 0.05e9); await confirmByPolling(sig); ok = true; note = `Airdropped by Solana devnet. <a href="${ex('tx', sig)}">tx</a>`; }
+    catch { /* public airdrop is rate-limited; fall through */ }
+  }
+  if (ok) status(note + ' Now solve the puzzle below.', 'ok');
+  else status(`Couldn't fuel automatically (${esc(note)}). Paste your address at <a href="https://faucet.solana.com" target="_blank" rel="noopener">faucet.solana.com</a>, then come back.`, 'bad');
+  $('#fund').disabled = false;
+  for (let i = 0; i < 8; i++) { await refresh(); if ((lastBalance ?? 0) >= 10_000 || !ok) break; await new Promise(r => setTimeout(r, 1500)); }
+}
+$('#fund').onclick = fund;
+
+// Poll for confirmation instead of using websockets, which some networks block.
+async function confirmByPolling(sig, lastValidBlockHeight) {
+  for (let i = 0; i < 90; i++) {
+    const { value } = await conn.getSignatureStatuses([sig]);
+    const st = value[0];
+    if (st?.err) throw new Error('Transaction failed on chain');
+    if (st && (st.confirmationStatus === 'confirmed' || st.confirmationStatus === 'finalized')) return;
+    if (lastValidBlockHeight && i % 5 === 4 && (await conn.getBlockHeight('confirmed')) > lastValidBlockHeight) throw new Error('Transaction expired before it landed; please try again.');
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  throw new Error('Timed out waiting for confirmation. Check the explorer: ' + sig);
+}
+
+async function sendTx(tx) {
+  const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash('confirmed');
+  tx.recentBlockhash = blockhash;
+  if (burner) {
+    tx.feePayer = burner.publicKey; tx.sign(burner);
+    const sig = await conn.sendRawTransaction(tx.serialize());
+    await confirmByPolling(sig, lastValidBlockHeight);
+    return sig;
+  }
+  const p = phantom();
+  tx.feePayer = new web3.PublicKey(phantomKey);
+  const { signature } = await p.signAndSendTransaction(tx);
+  return signature;
+}
+
+// ---------- contests ----------
+async function renderVerdict(el, id, inbox, house) {
+  el.innerHTML = '<div class="status">Reading the inbox from Solana…</div>';
+  try {
+    const recs = await fetchRecords(web3, conn, inbox);
+    const r = await adjudicate(id, house, recs);
+    const me = address();
+    const rows = [];
+    if (r.commit) rows.push(`<tr><td>COMMIT</td><td class="mono"><a href="${ex('address',r.commit.signer)}">${short(r.commit.signer)}</a> (house)</td><td>${r.commit.slot}</td><td class="mono">${r.commit.hash.slice(0,16)}…</td><td><a href="${ex('tx',r.commit.sig)}">tx</a></td></tr>`);
+    for (const s of r.submissions) {
+      const st = !r.reveal ? 'sealed' : s.eligible ? (r.winner && s.sig===r.winner.sig ? '<span class="win">WINNER</span>' : 'correct') : s.afterReveal ? 'late' : s.beforeCommit ? 'before commit' : 'wrong';
+      rows.push(`<tr><td>SUBMIT</td><td class="mono"><a href="${ex('address',s.signer)}">${short(s.signer)}</a>${s.signer===me?' (you)':''}</td><td>${s.slot}</td><td>${st}</td><td><a href="${ex('tx',s.sig)}">tx</a></td></tr>`);
+    }
+    if (r.reveal) rows.push(`<tr><td>REVEAL</td><td class="mono">${short(r.reveal.signer)} (house)</td><td>${r.reveal.slot}</td><td class="mono">${esc(r.reveal.answer)}</td><td><a href="${ex('tx',r.reveal.sig)}">tx</a></td></tr>`);
+    let verdict;
+    if (!r.commit) verdict = 'No commitment from the house on chain. This contest cannot be verified.';
+    else if (!r.reveal) verdict = `Open. The answer is sealed in commitment <span class="mono">${r.commit.hash.slice(0,20)}…</span>; ${r.submissions.length} sealed guess${r.submissions.length===1?'':'es'} so far.`;
+    else if (!r.valid) verdict = '<b style="color:var(--orange)">The reveal does not match the commitment.</b> The house changed its answer; no winner can stand.';
+    else verdict = `Reveal matches the commitment ✓ · answer <b>${esc(r.reveal.answer)}</b> · ${r.winner ? `winner <a class="mono" href="${ex('address',r.winner.signer)}">${short(r.winner.signer)}</a> at slot ${r.winner.slot}` : 'no correct submission'}.`;
+    el.innerHTML = `<table><thead><tr><th>Step</th><th>Signer</th><th>Slot</th><th>State</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table><div class="verdict">${verdict}</div>`;
+  } catch (e) { el.innerHTML = `<div class="status bad">Could not read the chain: ${esc(e.message)}. Try again, or add ?rpc=&lt;your devnet RPC&gt; to the URL.</div>`; }
+}
+
+async function submit(c, inputEl, statusEl, card) {
+  const say = (m, cls='') => { statusEl.className = 'status st ' + cls; statusEl.innerHTML = m; };
+  if (!address()) { say('You need a wallet first. <a href="#start">Create one in ten seconds</a>.', 'bad'); return; }
+  if (burner && (lastBalance ?? 0) < 10_000) { say('Your wallet has no fuel yet. <a href="#start">Get devnet SOL</a> first.', 'bad'); return; }
+  const guess = normalizeAnswer(inputEl.value);
+  if (!guess) { say('Type a guess first.', 'bad'); return; }
+  say('Sealing your guess to your wallet…');
+  try {
+    const h = await submitHash(c.contestId, address(), guess);
+    const tx = buildProtocolTx(web3, { payer: new web3.PublicKey(address()), inbox: c.inbox, memo: memoSubmit(c.contestId, h) });
+    const sig = await sendTx(tx);
+    say(`Sealed and on chain. Your guess stays hidden until the reveal. <a href="${ex('tx',sig)}">View transaction</a>`, 'ok');
+    inputEl.value = '';
+    refresh();
+    renderVerdict(card.querySelector('.vout'), c.contestId, c.inbox, c.house);
+  } catch (e) { say('Not submitted: ' + esc(e.message || e), 'bad'); }
+}
+
+const contests = await (await fetch('./contests.json', { cache:'no-store' })).json();
+const list = $('#list'); list.innerHTML = '';
+for (const c of contests) {
+  const el = document.createElement('div'); el.className = 'card' + (c.featured ? ' featured' : '');
+  el.id = c.contestId;
+  el.innerHTML = `<h3>${esc(c.title)}</h3>${c.subtitle ? `<div class="sub">${esc(c.subtitle)}</div>` : ''}
+    <span class="tag ${c.status}">${c.status}</span><span class="tag">${esc(c.contestId)}</span>
+    <div class="clue">${c.clue}</div>
+    ${c.hint ? `<details class="hint"><summary>Hint</summary>${esc(c.hint)}</details>` : ''}
+    <div class="kv"><div>House</div><div class="mono"><a href="${ex('address',c.house)}">${c.house}</a></div>
+    <div>Contest inbox</div><div class="mono"><a href="${ex('address',c.inbox)}">${c.inbox}</a></div>
+    <div>Sealed answer</div><div class="mono"><a href="${ex('tx',c.commitSig)}">${c.commitHash}</a></div></div>
+    ${c.status==='open' ? `<div class="row"><input placeholder="Your answer" class="guess" aria-label="Your answer for ${esc(c.contestId)}"><button class="btn seal">Seal &amp; submit</button></div><div class="status st"></div>` : ''}
+    <div class="row"><button class="btn ghost small ver">Verify from chain</button></div><div class="vout"></div>`;
+  list.appendChild(el);
+  el.querySelector('.ver').onclick = () => renderVerdict(el.querySelector('.vout'), c.contestId, c.inbox, c.house);
+  if (c.status==='open') {
+    const inp = el.querySelector('.guess');
+    el.querySelector('.seal').onclick = () => submit(c, inp, el.querySelector('.st'), el);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(c, inp, el.querySelector('.st'), el); });
+  } else renderVerdict(el.querySelector('.vout'), c.contestId, c.inbox, c.house);
+}
+$('#v-go').onclick = () => renderVerdict($('#v-out'), $('#v-id').value.trim(), $('#v-inbox').value.trim(), $('#v-house').value.trim());
+refresh();
+</script>
+</body>
+</html>
