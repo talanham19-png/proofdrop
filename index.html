@@ -208,6 +208,15 @@ async function pickRpc() {
 }
 const RPC = await pickRpc();
 const conn = new web3.Connection(RPC, 'confirmed');
+// Seconds per slot, measured from the cluster's recent performance. Devnet's slot time moves, so 0.4 s is only the fallback.
+let SEC_PER_SLOT = 0.4;
+const slotPace = (async () => {
+  try {
+    const ps = await conn.getRecentPerformanceSamples(15);
+    const secs = ps.reduce((a, p) => a + p.samplePeriodSecs, 0), n = ps.reduce((a, p) => a + p.numSlots, 0);
+    if (n > 0 && secs > 0) SEC_PER_SLOT = secs / n;
+  } catch {}
+})();
 const ex = (kind, v) => `https://explorer.solana.com/${kind}/${v}?cluster=devnet`;
 // The transaction that set the program's upgrade authority to None (13 Oct 2026 UTC). The page still reads the live state from chain.
 const FREEZE_SIG = 'BCXaSYqpPtyMCAKnWbhx1KZoDtDtr3MbHLTd6UseNeD8tYcRaRzoZFdyXDwQdiBoqz4ZPX9RFyTt4fe5sZyycsB';
@@ -358,15 +367,15 @@ async function renderEscrow(card, c, attempt = 0) {
   const out = card.querySelector('.vout');
   out.innerHTML = '<div class="status">Reading the contest from the program…</div>';
   try {
-    const [st, slot] = await Promise.all([loadContest(web3, conn, c.house, c.contestId), conn.getSlot('confirmed')]);
+    const [st, slot] = await Promise.all([loadContest(web3, conn, c.house, c.contestId), conn.getSlot('confirmed'), slotPace]);
     if (!st.exists) { out.innerHTML = '<div class="status bad">Contest account not found on chain.</div>'; return; }
     const pendingSettle = st.entries.filter(e => !e.settled).length;
     const phase = st.paid ? (st.paid === 1 ? 'paid' : 'refunded') : !st.revealed ? (slot <= st.closeSlot ? 'open' : 'awaiting') : (pendingSettle > 0 ? 'settling' : 'payable');
-    const eta = s => { const sec = Math.max(0, (s - slot) * 0.4); return sec > 86400 ? `${(sec / 86400).toFixed(1)} days` : sec > 3600 ? `${(sec / 3600).toFixed(1)} hours` : `${Math.max(1, Math.ceil(sec / 60))} min`; };
+    const eta = s => { const sec = Math.max(0, (s - slot) * SEC_PER_SLOT); return sec > 86400 ? `${(sec / 86400).toFixed(1)} days` : sec > 3600 ? `${(sec / 3600).toFixed(1)} hours` : `${Math.max(1, Math.ceil(sec / 60))} min`; };
     const sol = (st.purse / 1e9).toLocaleString(undefined, { maximumFractionDigits: 4 });
     const pill = card.querySelector('.purse'); if (pill) pill.textContent = `${sol} devnet SOL purse`;
     const phaseText = {
-      open: `Entries open. They close at slot ${st.closeSlot.toLocaleString()} (about ${eta(st.closeSlot)} from now).`,
+      open: `Entries open. They close at slot ${st.closeSlot.toLocaleString()} (about ${eta(st.closeSlot)} from now, at the network's current pace).`,
       awaiting: 'Entries closed. Waiting for the house to reveal; until it does, the purse cannot leave escrow.',
       settling: `Revealed and verified by the program. ${pendingSettle} of ${st.entryCount} entries still to settle; the program pays only once every entry is settled. Anyone can settle.`,
       payable: 'Every entry is settled. Anyone can trigger the payout; the program decides who receives it.',
