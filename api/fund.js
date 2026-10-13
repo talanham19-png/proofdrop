@@ -2,6 +2,7 @@
 // so a first-time player never has to leave the page. Devnet only.
 // Zero dependencies: builds and signs the one System transfer with Node's built-in Ed25519.
 // The faucet key lives in the FAUCET_SECRET env var (a 64-number JSON secret-key array).
+// A deployment without that variable forwards the request to KEYED_FAUCET, a deployment that has it.
 import crypto from 'node:crypto';
 
 const RPC = process.env.RPC_URL || 'https://api.devnet.solana.com';
@@ -9,6 +10,7 @@ const DRIP = 20_000_000;    // 0.02 SOL
 const ENOUGH = 5_000_000;   // wallets above 0.005 SOL are already funded
 const COOLDOWN_MS = 30_000;
 const recent = new Map();
+const KEYED_FAUCET = 'https://proofdrop-qm0oqs9fv-talanham19-pngs-projects.vercel.app/api/fund';
 
 const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 function b58decode(s) {
@@ -55,7 +57,17 @@ export default async function handler(req, res) {
   for (const k of [ip, destStr]) {
     if (now - (recent.get(k) || 0) < COOLDOWN_MS) return res.status(429).json({ error: 'One drip every 30 seconds. Try again shortly.' });
   }
-  if (!process.env.FAUCET_SECRET) return res.status(503).json({ error: 'Faucet not configured.' });
+  if (!process.env.FAUCET_SECRET) {
+    // This deployment has no faucet key of its own, so it hands the request to the deployment that holds one.
+    try {
+      const up = await fetch(KEYED_FAUCET, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ address: destStr }) });
+      const out = await up.json();
+      if (up.ok && out.funded) { recent.set(ip, now); recent.set(destStr, now); }
+      return res.status(up.status).json(out);
+    } catch (e) {
+      return res.status(503).json({ error: 'Faucet not configured.' });
+    }
+  }
 
   try {
     const balance = (await rpc('getBalance', [destStr, { commitment: 'confirmed' }])).value;

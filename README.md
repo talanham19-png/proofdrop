@@ -104,7 +104,7 @@ Already use Phantom? Press **Use Phantom** (set it to Devnet under Settings → 
 
 ## The faucet
 
-`api/fund.js` is a Vercel function holding a devnet-only key in the `FAUCET_SECRET` env var (a JSON secret-key array). It funds only wallets holding less than 0.005 SOL, and allows one drip per IP or address every 30 seconds.
+`api/fund.js` is a Vercel function holding a devnet-only key in the `FAUCET_SECRET` env var (a JSON secret-key array). It funds only wallets holding less than 0.005 SOL, and allows one drip per IP or address every 30 seconds. A deployment that lacks the variable forwards the request to an earlier deployment of the same function that has it.
 
 ## One primitive, many contests
 
