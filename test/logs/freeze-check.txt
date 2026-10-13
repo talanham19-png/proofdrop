@@ -1,0 +1,40 @@
+== Freeze of the ProofDrop program's upgrade authority (devnet)
+== BPF Upgradeable Loader SetAuthority with no new authority. Irreversible.
+== Order of events, all 13 Oct 2026 UTC: 21-check suite passed 01:40:53Z (escrow-devnet-2026-10-13-prefreeze.log),
+== binary hash re-checked, transaction simulated, then sent 01:42:17Z.
+
+-- output of the freeze run (scripts/freeze.mjs is the same script, tidied; it prints fewer fields)
+programData 6Sry2Au9yrTCfKFWEKU1B1aWABs8ssuuUiGyENDsMi6B
+before {"owner":"BPFLoaderUpgradeab1e11111111111111111111111","tag":3,"slot":510381736,"optionByte":1,"authority":"BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4","codeBytes":122504,"sha":"a84e11858ef29f6a86714a43e42d3647e9c97bb41886da5b2a88f66e6b0d4bf8","padZero":true,"lamports":623199160}
+binary matches recorded build: true
+simulation err: null
+  sim | Program BPFLoaderUpgradeab1e11111111111111111111111 invoke [1]
+  sim | New authority None
+  sim | Program BPFLoaderUpgradeab1e11111111111111111111111 success
+sent BCXaSYqpPtyMCAKnWbhx1KZoDtDtr3MbHLTd6UseNeD8tYcRaRzoZFdyXDwQdiBoqz4ZPX9RFyTt4fe5sZyycsB
+confirmed err: null
+after {"owner":"BPFLoaderUpgradeab1e11111111111111111111111","tag":3,"slot":510381736,"optionByte":0,"authority":null,"codeBytes":122504,"sha":"a84e11858ef29f6a86714a43e42d3647e9c97bb41886da5b2a88f66e6b0d4bf8","padZero":true,"lamports":623199160}
+parsed authority: null
+FROZEN: upgrade authority is None
+
+-- independent readback at FINALIZED commitment, no key involved
+status {"confirmationStatus":"finalized","confirmations":null,"err":null,"slot":510463052,"status":{"Ok":null}}
+slot 510463052 blockTime 1791855737 2026-10-13T01:42:17.000Z err null fee 5000
+  log | Program BPFLoaderUpgradeab1e11111111111111111111111 invoke [1]
+  log | New authority None
+  log | Program BPFLoaderUpgradeab1e11111111111111111111111 success
+signer BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4
+finalized parsed programData: {"authority":null,...
+finalized authority: null slot: 510381736
+program account: {"info":{"programData":"6Sry2Au9yrTCfKFWEKU1B1aWABs8ssuuUiGyENDsMi6B"},"type":"program"} executable true
+
+-- scripts/check-program.mjs (read-only; anyone can run it)
+program             5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q
+program data        6Sry2Au9yrTCfKFWEKU1B1aWABs8ssuuUiGyENDsMi6B
+last deployed slot  510381736
+recorded build      a84e11858ef29f6a86714a43e42d3647e9c97bb41886da5b2a88f66e6b0d4bf8
+on-chain binary     a84e11858ef29f6a86714a43e42d3647e9c97bb41886da5b2a88f66e6b0d4bf8 (MATCH, rest is zero padding)
+upgrade authority   none (frozen: no one can change this program)
+
+Freeze transaction: https://explorer.solana.com/tx/BCXaSYqpPtyMCAKnWbhx1KZoDtDtr3MbHLTd6UseNeD8tYcRaRzoZFdyXDwQdiBoqz4ZPX9RFyTt4fe5sZyycsB?cluster=devnet
+Also checkable with the Solana CLI: solana program show 5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q --url devnet   (Authority: none)

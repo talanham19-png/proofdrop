@@ -4,9 +4,9 @@
 
 Built by [Scrypt](https://satoshiscrypt.com) for the Colosseum **Crypto World's Fair** (Solana track).
 
-- **Live demo:** https://proofdrop-talanham19-pngs-projects.vercel.app (devnet)
-- **Program (devnet):** [`5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q`](https://explorer.solana.com/address/5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q?cluster=devnet)
-- **Stack:** native Solana program (Rust, `solana-program` 2.2) · `@solana/web3.js` · Phantom or an in-browser wallet · static page plus one tiny faucet function. v1 runs on SPL Memo alone.
+- **Live demo:** https://proofdrop-xi.vercel.app (devnet)
+- **Program (devnet):** [`5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q`](https://explorer.solana.com/address/5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q?cluster=devnet). **Frozen:** its upgrade authority was set to None in [this transaction](https://explorer.solana.com/tx/BCXaSYqpPtyMCAKnWbhx1KZoDtDtr3MbHLTd6UseNeD8tYcRaRzoZFdyXDwQdiBoqz4ZPX9RFyTt4fe5sZyycsB?cluster=devnet).
+- **Stack:** native Solana program (Rust, `solana-program` 2.2) · `@solana/web3.js` · Phantom or an in-browser wallet · static page plus two tiny serverless functions (a devnet faucet and an RPC-address lookup). v1 runs on SPL Memo alone.
 
 ---
 
@@ -59,7 +59,7 @@ Reproduce with `node scripts/proof-demo.mjs <houseKey> <winnerKey> <copierKey> <
 ### What you still trust
 
 - **Devnet only.** Purses are play money with no cash value.
-- **Upgrade authority.** Until it is frozen, the holder of the program's upgrade authority (Scrypt's house key) could replace the program. We freeze it before submission; the live page reads its status from chain.
+- **Upgrade authority: frozen.** Until 13 Oct 2026 at 01:42 UTC, Scrypt's house key held the program's upgrade authority and could have replaced the program. We set it to None before submission, in [this transaction](https://explorer.solana.com/tx/BCXaSYqpPtyMCAKnWbhx1KZoDtDtr3MbHLTd6UseNeD8tYcRaRzoZFdyXDwQdiBoqz4ZPX9RFyTt4fe5sZyycsB?cluster=devnet). No one, including Scrypt, can change the deployed program again; a fix would need a new program at a new address. The live page reads the authority from chain, and `test/logs/freeze-check.txt` records the readback.
 - **The house knows the answer.** The program refuses entries from the house wallet, but it can't stop the house using a second wallet. That trust remains; mainnet narrows it with per-solver salts and identity-gated entry.
 - **Sealed is uncopyable, not unreadable.** An entry only counts for the wallet that sent it, but someone holding a candidate answer could test it against other entries' hashes.
 - **Someone has to send the transactions.** Nothing on chain runs by itself. `v2-reveal` reveals, settles every entry (wrong ones included) and pays out in one run, and it's safe to re-run. Anyone else can settle and pay out too. Payout waits until all entries are settled, so no correct entry can be skipped.
@@ -67,7 +67,11 @@ Reproduce with `node scripts/proof-demo.mjs <houseKey> <winnerKey> <copierKey> <
 
 ### Deployed binary = this source
 
-`test/logs/deployed-binary-check.txt` shows that the program on devnet is byte-for-byte this build: sha256 `a84e1185…4bf8`, followed by zero padding from the account extension. It also records the current upgrade authority.
+`test/logs/deployed-binary-check.txt` shows that the program on devnet is byte-for-byte this build: sha256 `a84e1185…4bf8`, followed by zero padding from the account extension. It records the upgrade authority as it stood before the freeze.
+
+Check both yourself, with no key: `node scripts/check-program.mjs` compares the on-chain binary with the recorded build and prints the upgrade authority.
+
+`test/logs/freeze-check.txt` records the freeze itself: the same hash check repeated immediately before, the transaction, and the readback at finalized commitment showing the authority as None. `test/logs/escrow-devnet-2026-10-13-prefreeze.log` is the 21-check suite run against the deployed program minutes earlier (21 passed).
 
 ## v1: how the Memo protocol works
 
@@ -104,7 +108,7 @@ Already use Phantom? Press **Use Phantom** (set it to Devnet under Settings → 
 
 ## One primitive, many contests
 
-Commit, then sealed entries, then reveal and public recount. That covers more than puzzles:
+Commit, then sealed entries, then reveal and public recount. That pattern covers more than puzzles. These are research directions; none of them is built:
 
 | Contest | Change from puzzle mode |
 |---|---|

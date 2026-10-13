@@ -1,0 +1,43 @@
+== 21-check suite against the DEPLOYED devnet program, run immediately before the upgrade authority was frozen
+== program 5en4PkG2UVAGsW3JfpZdfV6t7PkUh8CLpNVg37ua7T1q · RPC https://api.devnet.solana.com · OPEN_SLOTS=150
+== command: RPC_URL=https://api.devnet.solana.com FUNDER=<key.json> OPEN_SLOTS=150 node test/escrow.test.mjs
+== test/escrow.test.mjs unmodified (sha256 a527c5b11a100bf7c76ebfd042fcacfefd33b1f70b3ddb54c42cf6d4d95abb04)
+== the '429 Too Many Requests' lines are the public RPC rate-limiting the client; web3.js retried and every check completed
+start 2026-10-13T01:39:28Z
+A. contest with a winner
+  ✓ purse of 0.5 SOL held by the contest account
+  ✓ second entry from the same wallet → rejected: This wallet has already entered this contest
+  ✓ house wallet enters its own contest → rejected: The house wallet cannot enter its own contest
+  ✓ reveal before entries close → rejected: Too early: entries are still open
+  ✓ entry after close → rejected: Entries are closed
+  ✓ non-house wallet reveals on the real contest → rejected: Only the house can do that
+  ✓ house tries to change the answer → rejected: Reveal does not match the commitment
+  ✓ honest reveal accepted
+  ✓ payout before every entry is settled → rejected: Not every entry is settled yet
+  ✓ carol (correct, later) settles first and leads
+  ✓ carol settles twice → rejected: That entry is already settled
+  ✓ eve's copied hash and alice's wrong guess settle as wrong
+  ✓ carol tries to cash out while an earlier entry is unsettled → rejected: Not every entry is settled yet
+  ✓ bob (correct, earliest) takes the lead when settled by a third party
+  ✓ payout to a later correct wallet → rejected: Recipient is not the winner
+  ✓ payout to the house while a correct entry exists → rejected: Recipient is not the winner
+  ✓ bob receives exactly the 0.5 SOL purse
+  ✓ double payout → rejected: Already paid
+  ✓ settling after payout → rejected: That entry is already settled
+B. contest where everyone is wrong
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 1000ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 1000ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 500ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 1000ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 2000ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 2000ms delay...
+Server responded with 429 Too Many Requests.  Retrying after 2000ms delay...
+  ✓ refund to the house before every entry is proven wrong → rejected: Not every entry is settled yet
+  ✓ refund to the house only after every entry is proven wrong
+
+21 passed, 0 failed
+exit=0
+end 2026-10-13T01:40:53Z
