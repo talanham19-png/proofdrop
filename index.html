@@ -371,6 +371,10 @@ async function renderEscrow(card, c, attempt = 0) {
     if (!st.exists) { out.innerHTML = '<div class="status bad">Contest account not found on chain.</div>'; return; }
     const pendingSettle = st.entries.filter(e => !e.settled).length;
     const phase = st.paid ? (st.paid === 1 ? 'paid' : 'refunded') : !st.revealed ? (slot <= st.closeSlot ? 'open' : 'awaiting') : (pendingSettle > 0 ? 'settling' : 'payable');
+    // The card's status tag comes from the chain, not from contests.json, so it can never drift.
+    const tag = card.querySelector('.tag.open, .tag.closed, .tag.live');
+    if (tag) { const live = phase === 'open'; tag.className = 'tag ' + (live ? 'open' : 'closed'); tag.textContent = live ? 'open' : (phase === 'awaiting' ? 'closed · awaiting reveal' : 'closed'); }
+    if (phase !== 'open') card.querySelectorAll('.guess').forEach(i => { const r = i.closest('.row'); if (r) { r.nextElementSibling?.classList.contains('st') && r.nextElementSibling.remove(); r.remove(); } });
     const eta = s => { const sec = Math.max(0, (s - slot) * SEC_PER_SLOT); return sec > 86400 ? `${(sec / 86400).toFixed(1)} days` : sec > 3600 ? `${(sec / 3600).toFixed(1)} hours` : `${Math.max(1, Math.ceil(sec / 60))} min`; };
     const sol = (st.purse / 1e9).toLocaleString(undefined, { maximumFractionDigits: 4 });
     const pill = card.querySelector('.purse'); if (pill) pill.textContent = `${sol} devnet SOL purse`;
