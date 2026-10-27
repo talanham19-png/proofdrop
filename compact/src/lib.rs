@@ -384,8 +384,9 @@ fn create_project(
     if id.is_empty() || id.len() > MAX_ID_LEN || founders.len() > MAX_FOUNDERS {
         return Err(CompactError::BadParams.into());
     }
-    // the organizer's fee is fixed at opening, visible to every member, and capped at 5%
-    if min_qualify == 0 || majority_from < 2 || equal_split_bps > rules::BPS || organizer_fee_bps > 500 {
+    // the organizer's fee (ruled 27 Oct 2026): fixed at opening, visible to every member,
+    // never more than 1%, and never nothing: every Scrypt contract carries the tithe
+    if min_qualify == 0 || majority_from < 2 || equal_split_bps > rules::BPS || organizer_fee_bps == 0 || organizer_fee_bps > 100 {
         return Err(CompactError::BadParams.into());
     }
     for (i, f) in founders.iter().enumerate() {

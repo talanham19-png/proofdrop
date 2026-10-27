@@ -8,7 +8,7 @@ One Solana program for every Scrypt collaborative project. It holds a project's 
 
 | Standing Offer | Where it lives |
 |---|---|
-| 1% organizer's fee off the top of every settlement, to the organizer personally (not the house) | `Project.organizer` + `organizer_fee_bps` fixed at opening (capped at 5%); `ClaimOrganizer`; the sweep waits for it |
+| 1% organizer's fee off the top of every settlement, to the organizer personally (not the house) | `Project.organizer` + `organizer_fee_bps` fixed at opening; never more than 1% and never zero; `ClaimOrganizer`; the sweep waits for it |
 | 75% split equally among qualifiers; Scrypt LLC counts as one | `rules::settle`, `Settle`, `Claim` |
 | 25% Reserve repays expenses the house fronted; the rest is the Bounty Pool | `rules::settle`; expenses can only be paid from `operating_deposits` (`Execute`) |
 | Expenses beyond the Reserve come off the top of the Equal Split | `rules::settle` |
