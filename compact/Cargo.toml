@@ -1,0 +1,25 @@
+[package]
+name = "scrypt-compact"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.84"
+description = "The Scrypt Collaborator Compact: shared project treasury, contributor ledger, member votes and the 75/25 prize split, on Solana"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+no-entrypoint = []
+
+[dependencies]
+solana-program = "=2.2.1"
+borsh = { version = "1.5", features = ["derive"] }
+
+[profile.release]
+overflow-checks = true
+
+[dev-dependencies]
+solana-program-test = "=2.2.1"
+solana-sdk = "=2.2.1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
