@@ -1,4 +1,4 @@
-//! The Scrypt Collaborator Compact.
+//! ProofShare (formerly the Scrypt Collaborator Compact). Sister program to ProofDrop.
 //!
 //! One program for every Scrypt collaborative project. Each project has a treasury,
 //! a roster, a contribution ledger, member votes and a prize settlement, with the

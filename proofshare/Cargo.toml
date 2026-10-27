@@ -1,9 +1,9 @@
 [package]
-name = "scrypt-compact"
+name = "proofshare"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.84"
-description = "The Scrypt Collaborator Compact: shared project treasury, contributor ledger, member votes and the 75/25 prize split, on Solana"
+description = "ProofShare: shared project treasury, contribution ledger, member votes and the organizer-fee + 75/25 prize split, on Solana. By Scrypt."
 license = "MIT"
 
 [lib]

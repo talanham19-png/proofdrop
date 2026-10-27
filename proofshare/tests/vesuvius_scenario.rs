@@ -4,7 +4,7 @@
 //! GPU hour = 1 point. Bar 3. Unanimous below 6. 75/25.
 
 use borsh::BorshDeserialize;
-use scrypt_compact::{
+use proofshare::{
     member_pda, process_instruction, project_pda, proposal_pda, vote_pda, Instruction as Ix, Project,
     Proposal, KIND_ADD_MEMBER, KIND_CONTRIBUTION, KIND_EXPENSE, KIND_SETTLE, STATUS_FAILED, STATUS_PASSED,
     STATUS_PENDING,
@@ -112,7 +112,7 @@ fn claim_ix(pid: &Pubkey, project: &Pubkey, wallet: &Pubkey) -> Instruction {
 #[tokio::test]
 async fn vesuvius_lane_end_to_end() {
     let pid = Pubkey::new_unique();
-    let mut pt = ProgramTest::new("scrypt_compact", pid, processor!(process_instruction));
+    let mut pt = ProgramTest::new("proofshare", pid, processor!(process_instruction));
     let house = Keypair::new();
     let organizer = Keypair::new(); // Thomas Lanham's personal wallet, not the house's
     let ally1 = Keypair::new();
@@ -264,7 +264,7 @@ async fn vesuvius_lane_end_to_end() {
 #[tokio::test]
 async fn bar_drops_to_one_when_nobody_reached_three() {
     let pid = Pubkey::new_unique();
-    let mut pt = ProgramTest::new("scrypt_compact", pid, processor!(process_instruction));
+    let mut pt = ProgramTest::new("proofshare", pid, processor!(process_instruction));
     let house = Keypair::new();
     let a = Keypair::new();
     let b = Keypair::new();

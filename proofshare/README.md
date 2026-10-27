@@ -1,6 +1,6 @@
-# The Scrypt Collaborator Compact
+# ProofShare
 
-One Solana program for every Scrypt collaborative project. It holds a project's treasury, keeps its roster and contribution ledger, runs the members' votes, and settles the prize. All of that is bound to the **Scrypt Collaborator Standing Offer** and its **Governance Addendum A**, ruled 27 Oct 2026. Every decision is a proposal the members vote on; no single wallet, the house's included, acts alone.
+ProofShare (working name: the Scrypt Collaborator Compact; named 27 Oct 2026) is one Solana program for every Scrypt collaborative project. It holds a project's treasury, keeps its roster and contribution ledger, runs the members' votes, and settles the prize. All of that is bound to the **Scrypt Collaborator Standing Offer** and its **Governance Addendum A**, ruled 27 Oct 2026. Every decision is a proposal the members vote on; no single wallet, the house's included, acts alone.
 
 **Status:** devnet prototype. Not audited, not deployed, not compiled to SBF yet (see *To ship*). Draft and hold.
 
