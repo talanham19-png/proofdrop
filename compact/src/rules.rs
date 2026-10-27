@@ -3,7 +3,9 @@
 //! Ruled by Salvador, 27 Oct 2026. Every rule the program enforces lives here as a
 //! pure function, so it can be tested on any machine without a validator.
 //!
-//! 1. Of every prize, 75% is split EQUALLY among qualifying contributors. The house
+//! 0. First, the organizer's fee (1%, ruled 27 Oct 2026) comes off the top of every prize and
+//!    every income split, paid to the organizer personally, not to the house.
+//! 1. Of what remains, 75% is split EQUALLY among qualifying contributors. The house
 //!    (Scrypt LLC) always counts as one qualifier.
 //! 2. 25% is the Reserve. It first repays approved project expenses the house fronted.
 //!    What remains is the Bounty Pool, paid pro rata by contribution points.
@@ -101,6 +103,8 @@ pub fn points(units: &[u64; MAX_KINDS], weights: &[u64; MAX_KINDS]) -> u64 {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Settlement {
+    /// Off the top, to the organizer personally.
+    pub organizer_fee: u64,
     /// Paid to each qualifier (house included).
     pub equal_share: u64,
     /// Repaid to the house for expenses it fronted.
@@ -112,11 +116,14 @@ pub struct Settlement {
 /// Split a prize.
 ///
 /// * `prize` — the prize amount being settled (lamports or token base units).
+/// * `organizer_fee_bps` — 100 (1%) under the standing offer; taken off the top first.
 /// * `expenses_paid` — approved expenses already paid out of the treasury, fronted by the house.
 /// * `qualifiers` — number of qualifying contributors, house included (always ≥ 1).
 /// * `equal_split_bps` — 7_500 under the standing offer.
-pub fn settle(prize: u64, expenses_paid: u64, qualifiers: u32, equal_split_bps: u64) -> Settlement {
+pub fn settle(prize: u64, organizer_fee_bps: u64, expenses_paid: u64, qualifiers: u32, equal_split_bps: u64) -> Settlement {
     let qualifiers = qualifiers.max(1) as u64;
+    let organizer_fee = mul_bps(prize, organizer_fee_bps);
+    let prize = prize - organizer_fee;
     let equal_total = mul_bps(prize, equal_split_bps);
     let reserve = prize - equal_total;
     let (reimbursement, bounty_pool, equal_after) = if expenses_paid <= reserve {
@@ -126,6 +133,7 @@ pub fn settle(prize: u64, expenses_paid: u64, qualifiers: u32, equal_split_bps: 
         (reserve + shortfall, 0, equal_total - shortfall)
     };
     Settlement {
+        organizer_fee,
         equal_share: equal_after / qualifiers,
         reimbursement,
         bounty_pool,
@@ -205,20 +213,36 @@ mod tests {
     #[test]
     fn the_worked_example() {
         // $50,000 prize, $2,000 approved expenses, 4 qualifiers (house + 3)
-        let s = settle(50_000, 2_000, 4, 7_500);
+        let s = settle(50_000, 0, 2_000, 4, 7_500);
         assert_eq!(s.equal_share, 9_375);
         assert_eq!(s.reimbursement, 2_000);
         assert_eq!(s.bounty_pool, 10_500);
         // 2 qualifiers
-        assert_eq!(settle(50_000, 2_000, 2, 7_500).equal_share, 18_750);
+        assert_eq!(settle(50_000, 0, 2_000, 2, 7_500).equal_share, 18_750);
         // 10 qualifiers
-        assert_eq!(settle(50_000, 2_000, 10, 7_500).equal_share, 3_750);
+        assert_eq!(settle(50_000, 0, 2_000, 10, 7_500).equal_share, 3_750);
+    }
+
+    #[test]
+    fn organizer_fee_comes_off_the_top() {
+        // $50,000 (in cents), 1% organizer's fee, $2,000 expenses, 4 qualifiers
+        let s = settle(50_000_00, 100, 2_000_00, 4, 7_500);
+        assert_eq!(s.organizer_fee, 500_00);
+        assert_eq!(s.equal_share, 9_281_25); // 75% of 49,500 / 4
+        assert_eq!(s.reimbursement, 2_000_00);
+        assert_eq!(s.bounty_pool, 10_375_00); // 25% of 49,500 - 2,000
+        assert!(s.organizer_fee + s.equal_share * 4 + s.reimbursement + s.bounty_pool <= 50_000_00);
+        // with the fee in place, nothing is ever overpaid
+        for &(prize, exp, q) in &[(999_999u64, 123u64, 7u32), (10, 0, 3), (50_000, 60_000, 2)] {
+            let s = settle(prize, 100, exp, q, 7_500);
+            assert!(s.organizer_fee + s.equal_share * q as u64 + s.reimbursement + s.bounty_pool <= prize);
+        }
     }
 
     #[test]
     fn expenses_beyond_the_reserve_come_off_the_top() {
         // reserve 12_500, expenses 15_000 -> shortfall 2_500 off the 37_500
-        let s = settle(50_000, 15_000, 4, 7_500);
+        let s = settle(50_000, 0, 15_000, 4, 7_500);
         assert_eq!(s.reimbursement, 15_000);
         assert_eq!(s.bounty_pool, 0);
         assert_eq!(s.equal_share, (37_500 - 2_500) / 4);
@@ -227,8 +251,8 @@ mod tests {
     #[test]
     fn nothing_is_created_from_nothing() {
         for &(prize, exp, q) in &[(50_000u64, 2_000u64, 4u32), (999_999, 123, 7), (10, 0, 3), (50_000, 60_000, 2)] {
-            let s = settle(prize, exp, q, 7_500);
-            let paid = s.equal_share * q as u64 + s.reimbursement + s.bounty_pool;
+            let s = settle(prize, 0, exp, q, 7_500);
+            let paid = s.organizer_fee + s.equal_share * q as u64 + s.reimbursement + s.bounty_pool;
             assert!(paid <= prize, "overpaid: {:?}", s);
         }
     }

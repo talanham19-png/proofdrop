@@ -114,6 +114,7 @@ async fn vesuvius_lane_end_to_end() {
     let pid = Pubkey::new_unique();
     let mut pt = ProgramTest::new("scrypt_compact", pid, processor!(process_instruction));
     let house = Keypair::new();
+    let organizer = Keypair::new(); // Thomas Lanham's personal wallet, not the house's
     let ally1 = Keypair::new();
     let ally2 = Keypair::new();
     let ally3 = Keypair::new();
@@ -138,6 +139,8 @@ async fn vesuvius_lane_end_to_end() {
     metas.extend(roster.iter().map(|w| AccountMeta::new(member_pda(&pid, &project, w).0, false)));
     let create = ix(&pid, Ix::CreateProject {
         id: ID.into(),
+        organizer: organizer.pubkey(),
+        organizer_fee_bps: 100,
         weights: [5, 1, 0, 0, 0, 0, 0, 0],
         min_qualify: 3,
         majority_from: 6,
@@ -214,9 +217,10 @@ async fn vesuvius_lane_end_to_end() {
     // the bar is 3 (Ally 2 reached it), so Ally 3 does not qualify: house, Ally 1, Ally 2 = 3
     assert_eq!(s.effective_min, 3);
     assert_eq!(s.qualifiers, 3);
-    assert_eq!(s.equal_share, 12_500_000_000); // 37.5 SOL / 3
+    assert_eq!(s.organizer_fee, 500_000_000); // 1% of 50 SOL, off the top
+    assert_eq!(s.equal_share, 12_375_000_000); // 75% of 49.5 SOL / 3
     assert_eq!(s.reimbursement, SOL); // the expense the house fronted
-    assert_eq!(s.bounty_pool, 11_500_000_000); // 12.5 − 1
+    assert_eq!(s.bounty_pool, 11_375_000_000); // 12.375 − 1
     assert_eq!(s.total_points, 100); // 55 + 30 + 15
 
     // 7 · claims, each to its own wallet, once
@@ -232,10 +236,21 @@ async fn vesuvius_lane_end_to_end() {
     for w in &roster {
         after.push(c.balance(w).await);
     }
-    assert_eq!(after[0] - before[0], 12_500_000_000 + SOL); // equal share + reimbursement, no points
-    assert_eq!(after[1] - before[1], 12_500_000_000 + 6_325_000_000); // 55% of the bounty
-    assert_eq!(after[2] - before[2], 12_500_000_000 + 3_450_000_000); // 30%
-    assert_eq!(after[3] - before[3], 1_725_000_000); // bounty only: 15%, below the bar
+    assert_eq!(after[0] - before[0], 12_375_000_000 + SOL); // equal share + reimbursement, no points
+    assert_eq!(after[1] - before[1], 12_375_000_000 + 6_256_250_000); // 55% of the bounty
+    assert_eq!(after[2] - before[2], 12_375_000_000 + 3_412_500_000); // 30%
+    assert_eq!(after[3] - before[3], 1_706_250_000); // bounty only: 15%, below the bar
+
+    // the organizer's fee: only to the organizer's own wallet, once; the sweep waits for it
+    let early_sweep = ix(&pid, Ix::Sweep, vec![AccountMeta::new(project, false), AccountMeta::new(house.pubkey(), false)]);
+    assert!(c.send(&[early_sweep], &[]).await.is_err(), "sweep waits for the organizer's fee");
+    let wrong_org = ix(&pid, Ix::ClaimOrganizer, vec![AccountMeta::new(project, false), AccountMeta::new(house.pubkey(), false)]);
+    assert!(c.send(&[wrong_org], &[]).await.is_err(), "the house cannot take the organizer's fee");
+    let o_before = c.balance(&organizer.pubkey()).await;
+    let org = ix(&pid, Ix::ClaimOrganizer, vec![AccountMeta::new(project, false), AccountMeta::new(organizer.pubkey(), false)]);
+    c.send(&[org.clone()], &[]).await.unwrap();
+    assert_eq!(c.balance(&organizer.pubkey()).await - o_before, 500_000_000);
+    assert!(c.send(&[org], &[]).await.is_err(), "paid once");
 
     // 8 · sweep returns the unspent operating money (1 SOL) to the house wallet, and only there
     let wrong = ix(&pid, Ix::Sweep, vec![AccountMeta::new(project, false), AccountMeta::new(ally1.pubkey(), false)]);
@@ -267,7 +282,7 @@ async fn bar_drops_to_one_when_nobody_reached_three() {
     ];
     metas.extend(roster.iter().map(|w| AccountMeta::new(member_pda(&pid, &project, w).0, false)));
     c.send(&[ix(&pid, Ix::CreateProject {
-        id: "quick".into(), weights: [5, 1, 0, 0, 0, 0, 0, 0], min_qualify: 3, majority_from: 6,
+        id: "quick".into(), organizer: house.pubkey(), organizer_fee_bps: 100, weights: [5, 1, 0, 0, 0, 0, 0, 0], min_qualify: 3, majority_from: 6,
         equal_split_bps: 7_500, founders: vec![a.pubkey(), b.pubkey()],
     }, metas)], &[&house]).await.unwrap();
     // a shows up once (house and b vote it through); b never does; then the win
@@ -286,5 +301,6 @@ async fn bar_drops_to_one_when_nobody_reached_three() {
     let s = c.project(&project).await;
     assert_eq!(s.effective_min, 1);
     assert_eq!(s.qualifiers, 2); // house + a; b contributed nothing
-    assert_eq!(s.equal_share, 3_750_000_000); // 7.5 / 2
+    assert_eq!(s.organizer_fee, 100_000_000); // 1% of 10 SOL
+    assert_eq!(s.equal_share, 3_712_500_000); // 75% of 9.9 / 2
 }

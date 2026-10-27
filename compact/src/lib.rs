@@ -5,6 +5,9 @@
 //! Collaborator Standing Offer and its Governance Addendum A (ruled 27 Oct 2026)
 //! enforced by `rules`.
 //!
+//! Off the top of every settlement, the organizer's fee (fixed when the project opens; 1% under
+//! the standing offer) is paid to the organizer's own wallet: Thomas Lanham personally, not the house.
+//!
 //! Every decision is a proposal the members vote on. No single wallet, the house's
 //! included, can add a member, spend, accept a contribution or settle a prize alone.
 //!
@@ -123,6 +126,9 @@ pub struct Project {
     pub tag: u8,
     pub bump: u8,
     pub house: Pubkey,
+    /// The organizer's personal wallet, paid the organizer's fee off the top.
+    pub organizer: Pubkey,
+    pub organizer_fee_bps: u64,
     pub id: String,
     /// Weight per contribution kind. Kind 0 = accepted contribution (counts for qualifying).
     pub weights: [u64; MAX_KINDS],
@@ -139,6 +145,8 @@ pub struct Project {
     pub effective_min: u32,
     pub qualifiers: u32,
     pub total_points: u64,
+    pub organizer_fee: u64,
+    pub organizer_paid: bool,
     pub equal_share: u64,
     pub reimbursement: u64,
     pub bounty_pool: u64,
@@ -199,6 +207,8 @@ pub enum Instruction {
     ///            member PDA for the house, then a member PDA for each founder]
     CreateProject {
         id: String,
+        organizer: Pubkey,
+        organizer_fee_bps: u64,
         weights: [u64; MAX_KINDS],
         min_qualify: u32,
         majority_from: u32,
@@ -220,6 +230,8 @@ pub enum Instruction {
     Claim,
     /// Accounts: [project, house wallet (writable)]
     Sweep,
+    /// Accounts: [project, organizer wallet (writable)]
+    ClaimOrganizer,
 }
 
 // ---------------------------------------------------------------- PDAs
@@ -242,8 +254,8 @@ pub fn vote_pda(program_id: &Pubkey, proposal: &Pubkey, wallet: &Pubkey) -> (Pub
 pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
     let ix = Instruction::try_from_slice(data).map_err(|_| ProgramError::InvalidInstructionData)?;
     match ix {
-        Instruction::CreateProject { id, weights, min_qualify, majority_from, equal_split_bps, founders } => {
-            create_project(program_id, accounts, id, weights, min_qualify, majority_from, equal_split_bps, founders)
+        Instruction::CreateProject { id, organizer, organizer_fee_bps, weights, min_qualify, majority_from, equal_split_bps, founders } => {
+            create_project(program_id, accounts, id, organizer, organizer_fee_bps, weights, min_qualify, majority_from, equal_split_bps, founders)
         }
         Instruction::Propose { kind, target, amount, contrib_kind, memo } => {
             propose(program_id, accounts, kind, target, amount, contrib_kind, memo)
@@ -253,6 +265,7 @@ pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], data: 
         Instruction::Deposit { amount, prize } => deposit(program_id, accounts, amount, prize),
         Instruction::Claim => claim(program_id, accounts),
         Instruction::Sweep => sweep(program_id, accounts),
+        Instruction::ClaimOrganizer => claim_organizer(program_id, accounts),
     }
 }
 
@@ -353,6 +366,8 @@ fn create_project(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     id: String,
+    organizer: Pubkey,
+    organizer_fee_bps: u64,
     weights: [u64; MAX_KINDS],
     min_qualify: u32,
     majority_from: u32,
@@ -369,7 +384,8 @@ fn create_project(
     if id.is_empty() || id.len() > MAX_ID_LEN || founders.len() > MAX_FOUNDERS {
         return Err(CompactError::BadParams.into());
     }
-    if min_qualify == 0 || majority_from < 2 || equal_split_bps > rules::BPS {
+    // the organizer's fee is fixed at opening, visible to every member, and capped at 5%
+    if min_qualify == 0 || majority_from < 2 || equal_split_bps > rules::BPS || organizer_fee_bps > 500 {
         return Err(CompactError::BadParams.into());
     }
     for (i, f) in founders.iter().enumerate() {
@@ -400,6 +416,8 @@ fn create_project(
         tag: PROJECT_TAG,
         bump,
         house: *house.key,
+        organizer,
+        organizer_fee_bps,
         id,
         weights,
         min_qualify,
@@ -414,6 +432,8 @@ fn create_project(
         effective_min: 0,
         qualifiers: 0,
         total_points: 0,
+        organizer_fee: 0,
+        organizer_paid: false,
         equal_share: 0,
         reimbursement: 0,
         bounty_pool: 0,
@@ -677,7 +697,7 @@ fn settle_now(program_id: &Pubkey, project_acc: &AccountInfo, project: &mut Proj
         .count() as u32;
     let total_points = members.iter().fold(0u64, |acc, m| acc.saturating_add(rules::points(&m.units, &project.weights)));
 
-    let s = rules::settle(project.prize_deposits, project.expenses_paid, qualifiers, project.equal_split_bps);
+    let s = rules::settle(project.prize_deposits, project.organizer_fee_bps, project.expenses_paid, qualifiers, project.equal_split_bps);
 
     // The treasury must actually hold what settlement promises to pay.
     let promised = s
@@ -685,6 +705,7 @@ fn settle_now(program_id: &Pubkey, project_acc: &AccountInfo, project: &mut Proj
         .checked_mul(qualifiers as u64)
         .and_then(|x| x.checked_add(s.reimbursement))
         .and_then(|x| x.checked_add(s.bounty_pool))
+        .and_then(|x| x.checked_add(s.organizer_fee))
         .ok_or(CompactError::Overflow)?;
     if promised > treasury_available(project_acc)? {
         return Err(CompactError::InsufficientTreasury.into());
@@ -694,6 +715,8 @@ fn settle_now(program_id: &Pubkey, project_acc: &AccountInfo, project: &mut Proj
     project.effective_min = eff_min;
     project.qualifiers = qualifiers;
     project.total_points = total_points;
+    project.organizer_fee = s.organizer_fee;
+    project.organizer_paid = s.organizer_fee == 0;
     project.equal_share = s.equal_share;
     project.reimbursement = s.reimbursement;
     project.bounty_pool = s.bounty_pool;
@@ -795,7 +818,7 @@ fn sweep(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     if project.status != PROJECT_SETTLED {
         return Err(CompactError::ProjectNotSettled.into());
     }
-    if project.claims_outstanding != 0 {
+    if project.claims_outstanding != 0 || !project.organizer_paid {
         return Err(CompactError::ClaimsOutstanding.into());
     }
     let rest = treasury_available(project_acc)?;
@@ -806,6 +829,30 @@ fn sweep(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     Ok(())
 }
 
+// ---------------------------------------------------------------- 7 ClaimOrganizer
+
+fn claim_organizer(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let it = &mut accounts.iter();
+    let project_acc = next_account_info(it)?;
+    let organizer = next_account_info(it)?;
+
+    let mut project = load_project(project_acc, program_id)?;
+    if &project.organizer != organizer.key {
+        return Err(CompactError::WrongRecipient.into());
+    }
+    if project.status != PROJECT_SETTLED {
+        return Err(CompactError::ProjectNotSettled.into());
+    }
+    if project.organizer_paid {
+        return Err(CompactError::AlreadyClaimed.into());
+    }
+    pay_out(project_acc, organizer, project.organizer_fee)?;
+    project.organizer_paid = true;
+    store(project_acc, &project)?;
+    msg!("compact: organizer's fee {} paid", project.organizer_fee);
+    Ok(())
+}
+
 #[cfg(test)]
 mod layout_tests {
     use super::*;
@@ -813,11 +860,12 @@ mod layout_tests {
     #[test]
     fn accounts_fit_their_allocations() {
         let p = Project {
-            tag: PROJECT_TAG, bump: 255, house: Pubkey::new_unique(), id: "x".repeat(MAX_ID_LEN),
+            tag: PROJECT_TAG, bump: 255, house: Pubkey::new_unique(), organizer: Pubkey::new_unique(),
+            organizer_fee_bps: 100, id: "x".repeat(MAX_ID_LEN),
             weights: [u64::MAX; MAX_KINDS], min_qualify: 3, majority_from: 6, equal_split_bps: 7_500,
             member_count: u32::MAX, proposal_count: u32::MAX, operating_deposits: u64::MAX,
             prize_deposits: u64::MAX, expenses_paid: u64::MAX, status: 2, effective_min: 3,
-            qualifiers: 10, total_points: u64::MAX, equal_share: u64::MAX, reimbursement: u64::MAX,
+            qualifiers: 10, total_points: u64::MAX, organizer_fee: u64::MAX, organizer_paid: true, equal_share: u64::MAX, reimbursement: u64::MAX,
             bounty_pool: u64::MAX, claims_outstanding: 10,
         };
         assert!(borsh::to_vec(&p).unwrap().len() <= PROJECT_LEN);
@@ -837,6 +885,8 @@ mod layout_tests {
     fn instructions_round_trip() {
         let ix = Instruction::CreateProject {
             id: "vesuvius".into(),
+            organizer: Pubkey::new_unique(),
+            organizer_fee_bps: 100,
             weights: [5, 1, 0, 0, 0, 0, 0, 0],
             min_qualify: 3,
             majority_from: 6,
