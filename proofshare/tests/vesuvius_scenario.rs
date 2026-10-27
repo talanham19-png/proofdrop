@@ -11,6 +11,7 @@ use proofshare::{
 };
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
+    compute_budget::ComputeBudgetInstruction,
     account::Account,
     hash::Hash,
     instruction::{AccountMeta, Instruction},
@@ -28,11 +29,18 @@ struct Ctx {
     hash: Hash,
     pid: Pubkey,
     payer: Keypair,
+    nonce: u64,
 }
 
 impl Ctx {
     async fn send(&mut self, ixs: &[Instruction], signers: &[&Keypair]) -> Result<(), String> {
         self.hash = self.bc.get_latest_blockhash().await.unwrap();
+        // A unique compute-unit price per send: identical transactions would replay a cached result
+        // instead of executing, which made "a second claim fails" checks flaky.
+        self.nonce += 1;
+        let mut ixs_all = vec![ComputeBudgetInstruction::set_compute_unit_price(self.nonce)];
+        ixs_all.extend_from_slice(ixs);
+        let ixs = &ixs_all[..];
         let mut all: Vec<&Keypair> = vec![&self.payer];
         all.extend_from_slice(signers);
         let tx = Transaction::new_signed_with_payer(ixs, Some(&self.payer.pubkey()), &all, self.hash);
@@ -125,7 +133,7 @@ async fn vesuvius_lane_end_to_end() {
         pt.add_account(k.pubkey(), Account { lamports: 100 * SOL, ..Account::default() });
     }
     let (bc, payer, hash) = pt.start().await;
-    let mut c = Ctx { bc, hash, pid, payer };
+    let mut c = Ctx { bc, hash, pid, payer, nonce: 0 };
     let (project, _) = project_pda(&pid, &house.pubkey(), ID);
     let founders = vec![ally1.pubkey(), ally2.pubkey(), ally3.pubkey()];
     let roster: Vec<Pubkey> = std::iter::once(house.pubkey()).chain(founders.iter().copied()).collect();
@@ -272,7 +280,7 @@ async fn bar_drops_to_one_when_nobody_reached_three() {
         pt.add_account(k.pubkey(), Account { lamports: 100 * SOL, ..Account::default() });
     }
     let (bc, payer, hash) = pt.start().await;
-    let mut c = Ctx { bc, hash, pid, payer };
+    let mut c = Ctx { bc, hash, pid, payer, nonce: 0 };
     let (project, _) = project_pda(&pid, &house.pubkey(), "quick");
     let roster = vec![house.pubkey(), a.pubkey(), b.pubkey()];
     let mut metas = vec![
