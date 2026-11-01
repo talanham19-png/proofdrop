@@ -1,10 +1,23 @@
 [
  {
+  "contestId": "JUDGE-01",
+  "title": "The Arena's Promise",
+  "subtitle": "Colosseum round · purse held in escrow by the program · devnet SOL (test tokens; no cash value) · the first correct wallet takes it",
+  "status": "open",
+  "featured": true,
+  "clue": "<p>A Roman general wrote his orders so that only a friend could read them. He moved every letter three steps along the alphabet and trusted the rest to the reader.</p><p>The Arena keeps a promise, and it is sealed the same way:</p><p><b>Frorvvhxp Fuhdwhv Rssruwxqlwb</b></p><p>Walk every letter back to where it started. The promise is three words.</p>",
+  "hint": "Caesar pushed each letter forward by three. You walk it back by three. Capitals and spaces don't matter.",
+  "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
+  "commitSig": "jeD3aMwJvXu7XbSTebzPa1e9akB6ivyYUb5hrb3mXB5ennyrLB5WceV3muxgSthiUEiZzFNJojVtiUhUej5P8Qm",
+  "commitHash": "311c4c5c0e2693c8271186a09698af6a40cdf4af0a2f027a330a98d23e6c41ac",
+  "program": "v2",
+  "contest": "EzeEMt1GPUzQcRyaKfUMTmB65N5mWXixAMchxYXqcymD"
+ },
+ {
   "contestId": "PD-004",
   "title": "The Fair Ledger",
   "subtitle": "A puzzle for the Crypto World's Fair · purse held in escrow by the program · devnet SOL (test tokens; no cash value)",
   "status": "open",
-  "featured": true,
   "clue": "<p>Every fair is a block. These eight arrived out of order.</p><ol class=\"blocks\"><li><span class=\"off\">[8]</span> A golden-glass globe on a steel truss over Tennessee. Television later called it a wig.</li><li><span class=\"off\">[5]</span> Iron and nearly 300,000 panes of glass, raised in Hyde Park for the first fair of them all.</li><li><span class=\"off\">[5]</span> A steel tree, thirty-seven metres tall, that lit up and sang over the lake in Milan.</li><li><span class=\"off\">[1]</span> Under the Needle, a single concrete beam carried visitors from downtown to the fairground. It still runs.</li><li><span class=\"off\">[3]</span> Its Arabic name means “the connection”: a trellised dome of steel lace at the heart of a desert fair that opened a year late.</li><li><span class=\"off\">[8]</span> Three hundred artists signed a protest against it. It was meant to come down after twenty years.</li><li><span class=\"off\">[5]</span> Taro Okamoto gave it three faces and drove it up through the roof of the festival plaza.</li><li><span class=\"off\">[3]</span> Buckminster Fuller's sphere of steel and acrylic held America's pavilion on an island in the St. Lawrence. Today it's an environment museum that still bears the dome's own one-word name.</li></ol><p>Name each landmark in plain English (no spaces, no city). Put the blocks in height order, oldest fair first, and take the letter at each block's offset. The chain spells what every World's Fair has ever been selling.</p>",
   "hint": "Height means year. The first block is London's; the last opened in 2021 under a 2020 name.",
   "house": "BgtH2bafVms2T3pEqwKGXkUy9pcKN5Fe4D5ytDijmpM4",
